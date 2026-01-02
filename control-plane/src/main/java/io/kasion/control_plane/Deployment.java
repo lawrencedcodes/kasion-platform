@@ -27,6 +27,9 @@ public class Deployment {
         this.createdAt = LocalDateTime.now();
     }
 
+    public void setStatus(String status) {this.status = status;}
+    public String getStatus() {return status; }
+
     // Getters/Setters
     public String getId() { return id; }
 }
