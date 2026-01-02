@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kasion | The Native Edge for Java</title>
+    <style>
+        :root {
+            --bg: #0a0a0a;
+            --text: #e5e5e5;
+            --accent: #00ff9d; /* Terminal Green */
+            --accent-dim: #00ff9d22;
+            --gray: #333;
+        }
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            font-family: 'Courier New', Courier, monospace;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            text-align: center;
+        }
+        .container {
+            max-width: 800px;
+            padding: 20px;
+        }
+        h1 {
+            font-size: 3rem;
+            margin-bottom: 10px;
+            letter-spacing: -2px;
+        }
+        .highlight {
+            color: var(--accent);
+            text-shadow: 0 0 10px var(--accent-dim);
+        }
+        p.sub {
+            font-size: 1.2rem;
+            color: #888;
+            margin-bottom: 40px;
+            line-height: 1.6;
+        }
+        .terminal {
+            background: #111;
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 20px;
+            text-align: left;
+            margin: 0 auto 40px auto;
+            max-width: 500px;
+            box-shadow: 0 10px 30px #000;
+        }
+        .cmd { color: var(--accent); }
+        .log { color: #666; font-size: 0.9rem; }
+        .success { color: var(--accent); font-weight: bold; }
+        
+        .btn {
+            background: var(--accent);
+            color: #000;
+            padding: 15px 30px;
+            font-size: 1rem;
+            font-weight: bold;
+            text-decoration: none;
+            border-radius: 4px;
+            transition: transform 0.2s, box-shadow 0.2s;
+            display: inline-block;
+        }
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 0 20px var(--accent-dim);
+        }
+        footer {
+            margin-top: 50px;
+            font-size: 0.8rem;
+            color: #444;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Kasion<span class="highlight">.io</span></h1>
+    <p class="sub">
+        The Cloud Platform for Modern Java.<br>
+        No YAML. No Dockerfiles. Just Code.
+    </p>
+
+    <div class="terminal">
+        <div><span class="cmd">➜  my-app</span> kasion push</div>
+        <div class="log">🚀 Detecting Spring Boot project...</div>
+        <div class="log">🔥 Initiating Furnace...</div>
+        <div class="log">🔨 Building Native Image...</div>
+        <div class="success">✅ [SUCCESS] Deployed to https://api.kasion.io</div>
+    </div>
+
+    <a href="#" class="btn">Get Early Access</a>
+
+    <footer>
+        &copy; 2026 Kasion Platform. Built in Public.
+    </footer>
+</div>
+
+</body>
+</html>
