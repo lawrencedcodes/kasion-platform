@@ -6,7 +6,7 @@ import java.util.concurrent.Callable;
 
 @Command(name = "kasion", mixinStandardHelpOptions = true, version = "kasion 0.1",
         description = "The Native Edge for Modern Java.",
-        subcommands = { PushCommand.class })
+        subcommands = { PushCommand.class, StatusCommand.class })
 public class KasionCommand implements Callable<Integer> {
 
     public static void main(String... args) {
