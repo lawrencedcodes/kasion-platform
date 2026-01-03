@@ -1,5 +1,6 @@
 package io.kasion.control_plane;
 
+
 import org.eclipse.jgit.api.Git;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
@@ -16,51 +17,68 @@ import java.util.Optional;
 public class BuildEngine {
 
     private final DeploymentRepository deploymentRepository;
-
-    public BuildEngine(DeploymentRepository deploymentRepository) {
+    private final DockerfileGenerator dockerfileGenerator;
+         
+    public BuildEngine(DeploymentRepository deploymentRepository, DockerfileGenerator dockerfileGenerator) {
         this.deploymentRepository = deploymentRepository;
+        this.dockerfileGenerator = dockerfileGenerator;
     }
 
     @Async
     public void startBuild(String deploymentId) {
         String jobId = deploymentId.substring(0, 8);
-        System.out.println("🚀 [Job " + jobId + "] Engine started. Preparing workspace...");
+        System.out.println("🚀 [Job " + jobId + "] Engine started.");
 
         try {
-            // 1. Create a temporary folder (The "Clean Room")
+            // 1. Create Workspace
             Path workingDir = Files.createTempDirectory("kasion-build-" + jobId);
-            System.out.println("📂 [Job " + jobId + "] Workspace: " + workingDir.toString());
+            System.out.println("📂 [Job " + jobId + "] Workspace created: " + workingDir);
 
             updateStatus(deploymentId, "CLONING");
 
-            // 2. Clone the Repo (Hardcoded to Spring PetClinic for this test)
+            // 2. Clone (Still hardcoded to PetClinic for the demo)
             String demoRepoUrl = "https://github.com/spring-projects/spring-petclinic.git";
-            System.out.println("⬇️ [Job " + jobId + "] Cloning " + demoRepoUrl + "...");
-
             try (Git git = Git.cloneRepository()
                     .setURI(demoRepoUrl)
                     .setDirectory(workingDir.toFile())
                     .call()) {
-                System.out.println("✅ [Job " + jobId + "] Clone Complete.");
+                System.out.println("✅ [Job " + jobId + "] Code cloned.");
             }
 
-            // 3. Parse the POM.xml
+            // 3. Analyze & Generate Plan
             updateStatus(deploymentId, "ANALYZING");
             File pomFile = new File(workingDir.toFile(), "pom.xml");
 
             if (pomFile.exists()) {
-                System.out.println("🔎 [Job " + jobId + "] Found pom.xml. Parsing...");
+                // FIXED: Uses the smarter parser now
                 String artifactId = parseArtifactId(pomFile);
-                System.out.println("📦 [Job " + jobId + "] Detected Artifact: " + artifactId);
+                System.out.println("📦 [Job " + jobId + "] Identified App: " + artifactId);
 
-                // Pretend we are compiling it (Maven takes too long for a demo)
-                updateStatus(deploymentId, "BUILDING");
-                Thread.sleep(2000);
+                System.out.println("🧠 [Job " + jobId + "] Generating Native Image Strategy...");
+                // Note: Generates instructions for Java 17/21
+                String dockerfileContent = dockerfileGenerator.generateNativeBuild(artifactId, "21");
 
+                // Write the Dockerfile to disk
+                Files.writeString(workingDir.resolve("Dockerfile"), dockerfileContent);
+                System.out.println("📝 [Job " + jobId + "] Dockerfile written to disk.");
+
+                // --- THE NEW PART: EXECUTION ---
+                updateStatus(deploymentId, "BUILDING_IMAGE");
+                System.out.println("🐳 [Job " + jobId + "] Sending build context to Docker Daemon...");
+                System.out.println("    (This may take 5-10 minutes for Native Compilation)");
+
+                // The Command: docker build -t kasion/spring-petclinic:latest .
+                String imageName = "kasion/" + artifactId + ":latest";
+
+                // actually run 'docker build'
+                runCommand(workingDir, "docker", "build", "-t", imageName, ".");
+
+                System.out.println("✅ [Job " + jobId + "] Docker Image Built Successfully: " + imageName);
                 updateStatus(deploymentId, "LIVE");
-                System.out.println("🎉 [Job " + jobId + "] Successfully deployed: " + artifactId);
+                // -------------------------------
+
             } else {
-                System.err.println("❌ [Job " + jobId + "] No pom.xml found!");
+                System.err.println("❌ [Job " + jobId + "] No pom.xml found.");
                 updateStatus(deploymentId, "FAILED");
             }
 
@@ -70,13 +88,45 @@ public class BuildEngine {
         }
     }
 
-    // Helper: Reads the <artifactId> tag from pom.xml
+    // 🔨 Helper: Runs a shell command in a specific folder
+    private void runCommand(Path workingDir, String... command) throws Exception {
+        ProcessBuilder builder = new ProcessBuilder(command);
+        builder.directory(workingDir.toFile());
+        builder.redirectErrorStream(true); // Merge error logs with standard logs
+
+        Process process = builder.start();
+
+        // Stream the logs to the console so we can watch the build
+        try (var reader = new java.io.BufferedReader(
+                new java.io.InputStreamReader(process.getInputStream()))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                System.out.println("    [Docker] " + line);
+            }
+        }
+
+        int exitCode = process.waitFor();
+        if (exitCode != 0) {
+            throw new RuntimeException("Command failed with exit code: " + exitCode);
+        }
+    }
+
+    // 🧠 Smarter Parser: Skips the parent definition
     private String parseArtifactId(File pomFile) throws Exception {
         DocumentBuilderFactory dbFactory = DocumentBuilderFactory.newInstance();
         DocumentBuilder dBuilder = dbFactory.newDocumentBuilder();
         Document doc = dBuilder.parse(pomFile);
         doc.getDocumentElement().normalize();
-        return doc.getElementsByTagName("artifactId").item(0).getTextContent();
+
+        var artifacts = doc.getElementsByTagName("artifactId");
+
+        for (int i = 0; i < artifacts.getLength(); i++) {
+            String val = artifacts.item(i).getTextContent();
+            if (!val.equals("spring-boot-starter-parent")) {
+                return val;
+            }
+        }
+        return "my-app"; // Fallback
     }
 
     private void updateStatus(String id, String status) {
