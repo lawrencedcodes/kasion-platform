@@ -1,6 +1,5 @@
 package io.kasion.control_plane;
 
-
 import org.eclipse.jgit.api.Git;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
@@ -18,7 +17,8 @@ public class BuildEngine {
 
     private final DeploymentRepository deploymentRepository;
     private final DockerfileGenerator dockerfileGenerator;
-         
+
+    // Inject the new Generator
     public BuildEngine(DeploymentRepository deploymentRepository, DockerfileGenerator dockerfileGenerator) {
         this.deploymentRepository = deploymentRepository;
         this.dockerfileGenerator = dockerfileGenerator;
@@ -36,7 +36,7 @@ public class BuildEngine {
 
             updateStatus(deploymentId, "CLONING");
 
-            // 2. Clone (Still hardcoded to PetClinic for the demo)
+            // 2. Clone (Hardcoded for prototype)
             String demoRepoUrl = "https://github.com/spring-projects/spring-petclinic.git";
             try (Git git = Git.cloneRepository()
                     .setURI(demoRepoUrl)
@@ -50,32 +50,29 @@ public class BuildEngine {
             File pomFile = new File(workingDir.toFile(), "pom.xml");
 
             if (pomFile.exists()) {
-                // FIXED: Uses the smarter parser now
+                // Use the fixed parser
                 String artifactId = parseArtifactId(pomFile);
                 System.out.println("📦 [Job " + jobId + "] Identified App: " + artifactId);
 
                 System.out.println("🧠 [Job " + jobId + "] Generating Native Image Strategy...");
-                // Note: Generates instructions for Java 17/21
                 String dockerfileContent = dockerfileGenerator.generateNativeBuild(artifactId, "21");
 
-                // Write the Dockerfile to disk
+                // Write Dockerfile to disk
                 Files.writeString(workingDir.resolve("Dockerfile"), dockerfileContent);
                 System.out.println("📝 [Job " + jobId + "] Dockerfile written to disk.");
 
-                // --- THE NEW PART: EXECUTION ---
+                // 4. EXECUTION (The new part)
                 updateStatus(deploymentId, "BUILDING_IMAGE");
                 System.out.println("🐳 [Job " + jobId + "] Sending build context to Docker Daemon...");
                 System.out.println("    (This may take 5-10 minutes for Native Compilation)");
 
-                // The Command: docker build -t kasion/spring-petclinic:latest .
                 String imageName = "kasion/" + artifactId + ":latest";
 
-                // actually run 'docker build'
+                // Run the Docker command
                 runCommand(workingDir, "docker", "build", "-t", imageName, ".");
 
                 System.out.println("✅ [Job " + jobId + "] Docker Image Built Successfully: " + imageName);
                 updateStatus(deploymentId, "LIVE");
-                // -------------------------------
 
             } else {
                 System.err.println("❌ [Job " + jobId + "] No pom.xml found.");
@@ -88,15 +85,15 @@ public class BuildEngine {
         }
     }
 
-    // 🔨 Helper: Runs a shell command in a specific folder
+    // 🔨 Helper: Runs shell commands (docker build)
     private void runCommand(Path workingDir, String... command) throws Exception {
         ProcessBuilder builder = new ProcessBuilder(command);
         builder.directory(workingDir.toFile());
-        builder.redirectErrorStream(true); // Merge error logs with standard logs
+        builder.redirectErrorStream(true);
 
         Process process = builder.start();
 
-        // Stream the logs to the console so we can watch the build
+        // Stream output to console
         try (var reader = new java.io.BufferedReader(
                 new java.io.InputStreamReader(process.getInputStream()))) {
             String line;
@@ -111,7 +108,7 @@ public class BuildEngine {
         }
     }
 
-    // 🧠 Smarter Parser: Skips the parent definition
+    // 🧠 Helper: Smarter XML Parser
     private String parseArtifactId(File pomFile) throws Exception {
         DocumentBuilderFactory dbFactory = DocumentBuilderFactory.newInstance();
         DocumentBuilder dBuilder = dbFactory.newDocumentBuilder();
@@ -126,7 +123,7 @@ public class BuildEngine {
                 return val;
             }
         }
-        return "my-app"; // Fallback
+        return "my-app";
     }
 
     private void updateStatus(String id, String status) {

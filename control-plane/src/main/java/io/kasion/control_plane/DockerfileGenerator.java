@@ -6,15 +6,12 @@ import org.springframework.stereotype.Service;
 public class DockerfileGenerator {
 
     /**
-     * This is the "Secret Sauce".
-     * Instead of asking the user for a Dockerfile, we generate the perfect one
-     * optimized for GraalVM Native Images.
+     * Generates a Multi-Stage Dockerfile optimized for Spring Boot Native Images.
      */
     public String generateNativeBuild(String artifactId, String javaVersion) {
         return """
             # ---------------------------------------------------------------------------
             # STAGE 1: The Furnace (Build Stage)
-            # We use the official GraalVM Community image to compile the Java code.
             # ---------------------------------------------------------------------------
             FROM ghcr.io/graalvm/native-image-community:21 AS builder
             
@@ -30,26 +27,24 @@ public class DockerfileGenerator {
             
             # 🔧 THE MAGIC COMMAND
             # -Pnative triggers the Spring Boot Native profile
-            # -DskipTests speeds up the build (we run tests in a separate CI step ideally)
+            # -DskipTests speeds up the build
             RUN ./mvnw -Pnative native:compile -DskipTests
             
             # ---------------------------------------------------------------------------
             # STAGE 2: The Runtime (Production Stage)
-            # We use a tiny 'Distroless' or minimal Linux image. No JVM required!
             # ---------------------------------------------------------------------------
-            FROM ubuntu:jammy-minimal
+            FROM ubuntu:jammy
             
-            # Create a non-root user for security (Senior Devs love this)
+            # Create a non-root user for security
             RUN groupadd -r kasion && useradd -r -g kasion kasion
             USER kasion
             
             WORKDIR /app
             
             # Copy ONLY the binary from the builder stage
-            # Notice we use the detected artifactId here
             COPY --from=builder /app/target/%s /app/runner
             
-            # The startup command is just the binary name
+            # The startup command
             ENTRYPOINT ["/app/runner"]
             """.formatted(artifactId);
     }
