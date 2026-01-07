@@ -37,7 +37,7 @@ public class BuildEngine {
             updateStatus(deploymentId, "CLONING");
 
             // 2. Clone (Hardcoded for prototype)
-            String demoRepoUrl = "https://github.com/spring-projects/spring-petclinic.git";
+            String demoRepoUrl = "https://github.com/spring-petclinic/spring-petclinic-rest.git";
             try (Git git = Git.cloneRepository()
                     .setURI(demoRepoUrl)
                     .setDirectory(workingDir.toFile())
@@ -72,6 +72,16 @@ public class BuildEngine {
                 runCommand(workingDir, "docker", "build", "-t", imageName, ".");
 
                 System.out.println("✅ [Job " + jobId + "] Docker Image Built Successfully: " + imageName);
+                updateStatus(deploymentId, "LIVE");
+                // ... (after docker build command) ...
+
+                System.out.println("✅ [Job " + jobId + "] Docker Image Built: " + imageName);
+
+                // --- THE NEW PART: DEPLOY ---
+                updateStatus(deploymentId, "DEPLOYING");
+                deployContainer(artifactId);
+                // ----------------------------
+
                 updateStatus(deploymentId, "LIVE");
 
             } else {
@@ -133,5 +143,28 @@ public class BuildEngine {
             deployment.setStatus(status);
             deploymentRepository.save(deployment);
         }
+    }
+    // 🚀 NEW: Spins up the container we just built
+    private void deployContainer(String artifactId) throws Exception {
+        String imageName = "kasion/" + artifactId + ":latest";
+        String containerName = artifactId + "-app";
+
+        System.out.println("🚀 [Deploy] Stopping old container (if any)...");
+        // Try to stop/remove old container (ignore errors if it doesn't exist)
+        try {
+            runCommand(Path.of("."), "docker", "rm", "-f", containerName);
+        } catch (Exception e) {
+            // It's fine, probably didn't exist
+        }
+
+        System.out.println("🚀 [Deploy] Starting new container: " + containerName);
+        // docker run -d -p 8081:8080 --name spring-petclinic-app kasion/spring-petclinic:latest
+        // Note: We map port 8081 on host to 8080 in container
+        runCommand(Path.of("."), "docker", "run", "-d",
+                "-p", "8081:8080",
+                "--name", containerName,
+                imageName);
+
+        System.out.println("✅ [Deploy] App is LIVE at: http://localhost:8081");
     }
 }
