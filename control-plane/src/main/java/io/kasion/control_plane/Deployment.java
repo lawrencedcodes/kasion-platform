@@ -26,10 +26,16 @@ public class Deployment {
         this.status = status;
         this.createdAt = LocalDateTime.now();
     }
-
-    public void setStatus(String status) {this.status = status;}
-    public String getStatus() {return status; }
-
-    // Getters/Setters
     public String getId() { return id; }
+    public String getStatus() { return status; }
+    public String getCommitHash() { return commitHash; }
+    public LocalDateTime getCreatedAt() { return createdAt; }
+
+    // THIS is the specific one you need:
+    public Project getProject() { return project; }
+
+    // --- SETTERS ---
+    public void setStatus(String status) { this.status = status; }
+    public void setCommitHash(String commitHash) { this.commitHash = commitHash; }
+
 }
