@@ -28,10 +28,19 @@ public class DeploymentController {
 
         // 1. Find or Create Project
         Project project = projectRepository.findByName(projectName)
-                .orElseGet(() -> projectRepository.save(new Project(projectName, "unknown-repo")));
+                .orElseGet(() -> {
+                    // Create new project if it doesn't exist
+                    Project newProject = new Project(projectName, "cli-user");
+
+                    // 🚀 CRITICAL FIX: Set the default Repo URL here
+                    // This ensures the BuildEngine knows what to clone!
+                    newProject.setGithubRepoUrl("https://github.com/spring-petclinic/spring-petclinic-rest.git");
+
+                    return projectRepository.save(newProject);
+                });
 
         // 2. Create Deployment Record (PENDING)
-        Deployment deployment = new Deployment(project, "PENDING");
+        Deployment deployment = new Deployment(project,"PENDING");
         deploymentRepository.save(deployment);
 
         // 3. Trigger Async Build (Fire and Forget)

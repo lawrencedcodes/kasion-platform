@@ -37,9 +37,20 @@ public class BuildEngine {
             updateStatus(deploymentId, "CLONING");
 
             // 2. Clone (Hardcoded for prototype)
-            String demoRepoUrl = "https://github.com/spring-petclinic/spring-petclinic-rest.git";
+            Optional<Deployment> deploymentOpt = deploymentRepository.findById(deploymentId);
+            if (deploymentOpt.isEmpty()) return;
+
+            String repoUrl = deploymentOpt.get().getProject().getGithubRepoUrl();
+
+            // Fallback if null (for safety)
+            if (repoUrl == null) {
+                repoUrl = "https://github.com/spring-petclinic/spring-petclinic-rest.git";
+            }
+
+            System.out.println("⬇️ [Job " + jobId + "] Cloning: " + repoUrl);
+
             try (Git git = Git.cloneRepository()
-                    .setURI(demoRepoUrl)
+                    .setURI(repoUrl)
                     .setDirectory(workingDir.toFile())
                     .call()) {
                 System.out.println("✅ [Job " + jobId + "] Code cloned.");
