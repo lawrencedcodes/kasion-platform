@@ -17,7 +17,7 @@ public class DockerfileGenerator {
             FROM eclipse-temurin:21-jdk-jammy as builder
             WORKDIR /app
             
-            # 1. Copy Maven Wrapper & Dependencies first (Better Caching)
+            # 1. Copy Maven Wrapper & Dependencies
             COPY .mvn/ .mvn
             COPY mvnw pom.xml ./
             RUN chmod +x mvnw
@@ -25,29 +25,27 @@ public class DockerfileGenerator {
             # 2. Copy Source Code
             COPY src ./src
             
-            # 3. Build the JAR (Standard Spring Boot Build)
-            # We skip tests to make it faster for the demo
+            # 3. Build the JAR
             RUN ./mvnw clean package -DskipTests
             
             # ---------------------------------------------------------
-            # 🚀 STAGE 2: Create the Lightweight Runtime
+            # 🚀 STAGE 2: Create the Runtime
             # ---------------------------------------------------------
             FROM eclipse-temurin:21-jre-jammy
             WORKDIR /app
             
-            # Create a non-root user for security
+            # Create a non-root user
             RUN groupadd -r kasion && useradd -r -g kasion kasion
             USER kasion
             
-            # Copy the JAR from the builder stage
-            # We use a wildcard *.jar so we don't need to know the artifactId
+            # Copy the JAR
             COPY --from=builder /app/target/*.jar app.jar
             
             # Expose the standard port
             EXPOSE 8080
             
-            # Start the app
-            ENTRYPOINT ["java", "-jar", "app.jar"]
+            # Start the app with forced port 8080
+            ENTRYPOINT ["java", "-Dserver.port=8080", "-jar", "app.jar"]
             """;
     }
 
