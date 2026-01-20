@@ -65,8 +65,8 @@ public class BuildEngine {
                 String artifactId = parseArtifactId(pomFile);
                 System.out.println("📦 [Job " + jobId + "] Identified App: " + artifactId);
 
-                System.out.println("🧠 [Job " + jobId + "] Generating Native Image Strategy...");
-                String dockerfileContent = dockerfileGenerator.generateNativeBuild(artifactId, "21");
+                System.out.println("🧠 [Job " + jobId + "] Generating Standard JVM Strategy...");
+                String dockerfileContent = dockerfileGenerator.generateStandardBuild("21");
 
                 // Write Dockerfile to disk
                 Files.writeString(workingDir.resolve("Dockerfile"), dockerfileContent);
