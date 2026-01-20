@@ -23,33 +23,45 @@ public class DeploymentController {
 
     @PostMapping("/deploy")
     public ResponseEntity<?> deploy(@RequestBody Map<String, String> payload) {
-        String projectName = payload.get("projectName");
-        System.out.println("⚡ RECEIVED DEPLOY REQUEST FOR: " + projectName);
+        // 1. Get the inputs from the UI
+        String repoUrl = payload.get("repoUrl");
 
-        // 1. Find or Create Project
+        // Fail if no URL is provided
+        if (repoUrl == null || repoUrl.isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Repo URL is required"));
+        }
+
+        // 2. Auto-generate a Project Name from the URL
+        // (e.g., "https://github.com/user/my-app.git" -> "my-app")
+        String projectName = repoUrl.substring(repoUrl.lastIndexOf("/") + 1).replace(".git", "");
+
+        System.out.println("⚡ RECEIVED DEPLOY REQUEST: " + projectName + " [" + repoUrl + "]");
+
+        // 3. Find or Create Project
         Project project = projectRepository.findByName(projectName)
                 .orElseGet(() -> {
-                    // Create new project if it doesn't exist
-                    Project newProject = new Project(projectName, "cli-user");
-
-                    // 🚀 CRITICAL FIX: Set the default Repo URL here
-                    // This ensures the BuildEngine knows what to clone!
-                    newProject.setGithubRepoUrl("https://github.com/spring-petclinic/spring-petclinic-rest.git");
-
+                    Project newProject = new Project(projectName, "web-user");
+                    newProject.setGithubRepoUrl(repoUrl); // <--- Save the custom URL!
                     return projectRepository.save(newProject);
                 });
 
-        // 2. Create Deployment Record (PENDING)
-        Deployment deployment = new Deployment(project,"PENDING");
+        // ensure URL is updated if project already existed
+        if (!project.getGithubRepoUrl().equals(repoUrl)) {
+            project.setGithubRepoUrl(repoUrl);
+            projectRepository.save(project);
+        }
+
+        // 4. Create Deployment Record
+        Deployment deployment = new Deployment(project, "PENDING");
         deploymentRepository.save(deployment);
 
-        // 3. Trigger Async Build (Fire and Forget)
+        // 5. Trigger Async Build
         buildEngine.startBuild(deployment.getId());
 
         return ResponseEntity.ok(Map.of(
                 "status", "queued",
                 "deploymentId", deployment.getId(),
-                "message", "The Furnace is heating up."
+                "project", projectName
         ));
     }
 

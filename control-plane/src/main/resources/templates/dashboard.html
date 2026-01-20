@@ -103,7 +103,13 @@
 </main>
 <script>
     function triggerDeploy() {
-        // 1. Find the button and make it look busy
+        // 1. Ask the user for the URL
+        const repoUrl = prompt("Paste public GitHub URL:", "https://github.com/spring-petclinic/spring-petclinic-rest.git");
+
+        // If they clicked Cancel, stop.
+        if (!repoUrl) return;
+
+        // 2. Find button and show loading state
         const btn = document.querySelector("button[onclick='triggerDeploy()']");
         const originalText = btn.innerHTML;
 
@@ -112,22 +118,21 @@
                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
             </svg>
-            Requesting...
+            Deploying...
         `;
         btn.disabled = true;
 
-        // 2. Call the API
+        // 3. Send URL to Backend
         fetch('/api/v1/deploy', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ projectName: 'cli' }) // Defaulting to the 'cli' project for now
+            body: JSON.stringify({ repoUrl: repoUrl }) // <--- Sending the dynamic URL
         })
         .then(response => {
             if (response.ok) {
-                // 3. Success! Reload page to see the new PENDING row
                 setTimeout(() => window.location.reload(), 1000);
             } else {
-                alert("Server error!");
+                alert("Server error! Check logs.");
                 btn.innerHTML = originalText;
                 btn.disabled = false;
             }
