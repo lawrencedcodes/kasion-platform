@@ -12,21 +12,19 @@ public class DockerfileGenerator {
     public String generateStandardBuild(String javaVersion) {
         return """
             # ---------------------------------------------------------
-            # 🏗️ STAGE 1: Build the Application (Standard JVM)
+            # 🏗️ STAGE 1: Build (Universal Maven Strategy)
             # ---------------------------------------------------------
-            FROM eclipse-temurin:21-jdk-jammy as builder
+            # We use a base image that HAS Maven installed (maven:3.9)
+            # This fixes the "missing mvnw" error on older projects
+            FROM maven:3.9-eclipse-temurin-21 as builder
             WORKDIR /app
             
-            # 1. Copy Maven Wrapper & Dependencies
-            COPY .mvn/ .mvn
-            COPY mvnw pom.xml ./
-            RUN chmod +x mvnw
+            # 1. Copy Project Files
+            COPY . .
             
-            # 2. Copy Source Code
-            COPY src ./src
-            
-            # 3. Build the JAR
-            RUN ./mvnw clean package -DskipTests
+            # 2. Build the JAR using the system 'mvn'
+            # We skip tests to speed up the build
+            RUN mvn clean package -DskipTests
             
             # ---------------------------------------------------------
             # 🚀 STAGE 2: Create the Runtime
@@ -34,17 +32,16 @@ public class DockerfileGenerator {
             FROM eclipse-temurin:21-jre-jammy
             WORKDIR /app
             
-            # Create a non-root user
+            # Security: Create a non-root user
             RUN groupadd -r kasion && useradd -r -g kasion kasion
             USER kasion
             
-            # Copy the JAR
+            # Copy the JAR from the builder stage
+            # We use a wildcard *.jar because we don't know the exact name
             COPY --from=builder /app/target/*.jar app.jar
             
-            # Expose the standard port
+            # Force port 8080
             EXPOSE 8080
-            
-            # Start the app with forced port 8080
             ENTRYPOINT ["java", "-Dserver.port=8080", "-jar", "app.jar"]
             """;
     }

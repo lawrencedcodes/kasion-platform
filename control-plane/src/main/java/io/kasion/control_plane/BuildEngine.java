@@ -1,16 +1,17 @@
 package io.kasion.control_plane;
 
-import org.eclipse.jgit.api.Git;
+import io.kasion.control_plane.Deployment; // Ensure these match your package structure
+import io.kasion.control_plane.Project;
+import io.kasion.control_plane.DeploymentRepository;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
-import org.w3c.dom.Document;
 
-import javax.xml.parsers.DocumentBuilder;
-import javax.xml.parsers.DocumentBuilderFactory;
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.InputStreamReader;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Optional;
+import java.util.UUID;
 
 @Service
 public class BuildEngine {
@@ -18,7 +19,6 @@ public class BuildEngine {
     private final DeploymentRepository deploymentRepository;
     private final DockerfileGenerator dockerfileGenerator;
 
-    // Inject the new Generator
     public BuildEngine(DeploymentRepository deploymentRepository, DockerfileGenerator dockerfileGenerator) {
         this.deploymentRepository = deploymentRepository;
         this.dockerfileGenerator = dockerfileGenerator;
@@ -26,100 +26,92 @@ public class BuildEngine {
 
     @Async
     public void startBuild(String deploymentId) {
-        String jobId = deploymentId.substring(0, 8);
-        System.out.println("🚀 [Job " + jobId + "] Engine started.");
+        // 1. Fetch Deployment
+        // If your Deployment ID is a String in the DB, change 'Long' to 'String' above and below.
+        Deployment deployment = deploymentRepository.findById(deploymentId)
+                .orElseThrow(() -> new RuntimeException("Deployment not found: " + deploymentId));
 
+        Project project = deployment.getProject();
+        String jobId = UUID.randomUUID().toString().substring(0, 8);
+
+        System.out.println("🚀 [Job " + jobId + "] Engine started for: " + project.getName());
+
+        File workspace = null;
         try {
-            // 1. Create Workspace
-            Path workingDir = Files.createTempDirectory("kasion-build-" + jobId);
-            System.out.println("📂 [Job " + jobId + "] Workspace created: " + workingDir);
+            // 2. Create Workspace (Path -> File)
+            // We use Path to create the dir, but convert to File for runCommand
+            Path workspacePath = Files.createTempDirectory("kasion-build-" + jobId);
+            workspace = workspacePath.toFile();
 
-            updateStatus(deploymentId, "CLONING");
+            System.out.println("📂 [Job " + jobId + "] Workspace created: " + workspace.getAbsolutePath());
 
-            // 2. Clone (Hardcoded for prototype)
-            Optional<Deployment> deploymentOpt = deploymentRepository.findById(deploymentId);
-            if (deploymentOpt.isEmpty()) return;
-
-            String repoUrl = deploymentOpt.get().getProject().getGithubRepoUrl();
-
-            // Fallback if null (for safety)
-            if (repoUrl == null) {
-                repoUrl = "https://github.com/spring-petclinic/spring-petclinic-rest.git";
-            }
-
+            // 3. Clone (Native Git)
+            String repoUrl = project.getGithubRepoUrl();
             System.out.println("⬇️ [Job " + jobId + "] Cloning: " + repoUrl);
 
-            try (Git git = Git.cloneRepository()
-                    .setURI(repoUrl)
-                    .setDirectory(workingDir.toFile())
-                    .call()) {
-                System.out.println("✅ [Job " + jobId + "] Code cloned.");
-            }
+            // Explicitly passing 'workspace' (File) as the first argument
+            runCommand(workspace, "git", "clone", repoUrl, ".");
 
-            // 3. Analyze & Generate Plan
-            updateStatus(deploymentId, "ANALYZING");
-            File pomFile = new File(workingDir.toFile(), "pom.xml");
+            System.out.println("✅ [Job " + jobId + "] Code cloned.");
 
-            if (pomFile.exists()) {
-                // Use the fixed parser
-                String artifactId = parseArtifactId(pomFile);
-                System.out.println("📦 [Job " + jobId + "] Identified App: " + artifactId);
+            // 4. Generate Dockerfile
+            System.out.println("🧠 [Job " + jobId + "] Generating Standard JVM Strategy...");
+            String dockerfileContent = dockerfileGenerator.generateStandardBuild("21");
 
-                System.out.println("🧠 [Job " + jobId + "] Generating Standard JVM Strategy...");
-                String dockerfileContent = dockerfileGenerator.generateStandardBuild("21");
+            // Write Dockerfile: Convert File -> Path for the 'Files.writeString' method
+            File dockerfile = new File(workspace, "Dockerfile");
+            Files.writeString(dockerfile.toPath(), dockerfileContent);
 
-                // Write Dockerfile to disk
-                Files.writeString(workingDir.resolve("Dockerfile"), dockerfileContent);
-                System.out.println("📝 [Job " + jobId + "] Dockerfile written to disk.");
+            System.out.println("📝 [Job " + jobId + "] Dockerfile written to disk.");
 
-                // 4. EXECUTION (The new part)
-                updateStatus(deploymentId, "BUILDING_IMAGE");
-                System.out.println("🐳 [Job " + jobId + "] Sending build context to Docker Daemon...");
-                System.out.println("    (This may take 5-10 minutes for Native Compilation)");
+            // 5. Build Docker Image
+            String imageName = "kasion/" + project.getName().toLowerCase() + ":latest"; // Ensure lowercase for Docker
+            System.out.println("🐳 [Job " + jobId + "] Building Image: " + imageName);
 
-                String imageName = "kasion/" + artifactId + ":latest";
+            runCommand(workspace, "docker", "build", "-t", imageName, ".");
 
-                // Run the Docker command
-                runCommand(workingDir, "docker", "build", "-t", imageName, ".");
+            // 6. Run It
+            System.out.println("🚀 [Deploy] Stopping old container...");
+            try {
+                // Ignore errors here (if container doesn't exist yet)
+                runCommand(workspace, "docker", "rm", "-f", project.getName().toLowerCase() + "-app");
+            } catch (Exception ignored) {}
 
-                System.out.println("✅ [Job " + jobId + "] Docker Image Built Successfully: " + imageName);
-                updateStatus(deploymentId, "LIVE");
-                // ... (after docker build command) ...
+            System.out.println("🚀 [Deploy] Starting new container...");
+            // Run on port 8081
+            runCommand(workspace, "docker", "run", "-d",
+                    "--name", project.getName().toLowerCase() + "-app",
+                    "-p", "8081:8080",
+                    imageName);
 
-                System.out.println("✅ [Job " + jobId + "] Docker Image Built: " + imageName);
+            System.out.println("✅ [Deploy] LIVE at http://localhost:8081");
 
-                // --- THE NEW PART: DEPLOY ---
-                updateStatus(deploymentId, "DEPLOYING");
-                deployContainer(artifactId);
-                // ----------------------------
-
-                updateStatus(deploymentId, "LIVE");
-
-            } else {
-                System.err.println("❌ [Job " + jobId + "] No pom.xml found.");
-                updateStatus(deploymentId, "FAILED");
-            }
+            deployment.setStatus("LIVE");
+            deploymentRepository.save(deployment);
 
         } catch (Exception e) {
+            System.err.println("❌ [Job " + jobId + "] Build Failed!");
             e.printStackTrace();
-            updateStatus(deploymentId, "ERROR");
+            deployment.setStatus("FAILED");
+            deploymentRepository.save(deployment);
         }
+        // Ideally delete the workspace here, but keeping it for debugging
     }
 
-    // 🔨 Helper: Runs shell commands (docker build)
-    private void runCommand(Path workingDir, String... command) throws Exception {
+    /**
+     * Helper method to run shell commands in a specific directory.
+     * Takes a File object as the directory.
+     */
+    private void runCommand(File workingDir, String... command) throws Exception {
         ProcessBuilder builder = new ProcessBuilder(command);
-        builder.directory(workingDir.toFile());
+        builder.directory(workingDir); // This expects a File, which is why we convert Path to File earlier
         builder.redirectErrorStream(true);
-
         Process process = builder.start();
 
-        // Stream output to console
-        try (var reader = new java.io.BufferedReader(
-                new java.io.InputStreamReader(process.getInputStream()))) {
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
             String line;
             while ((line = reader.readLine()) != null) {
-                System.out.println("    [Docker] " + line);
+                System.out.println("   [Cmd] " + line);
             }
         }
 
@@ -127,55 +119,5 @@ public class BuildEngine {
         if (exitCode != 0) {
             throw new RuntimeException("Command failed with exit code: " + exitCode);
         }
-    }
-
-    // 🧠 Helper: Smarter XML Parser
-    private String parseArtifactId(File pomFile) throws Exception {
-        DocumentBuilderFactory dbFactory = DocumentBuilderFactory.newInstance();
-        DocumentBuilder dBuilder = dbFactory.newDocumentBuilder();
-        Document doc = dBuilder.parse(pomFile);
-        doc.getDocumentElement().normalize();
-
-        var artifacts = doc.getElementsByTagName("artifactId");
-
-        for (int i = 0; i < artifacts.getLength(); i++) {
-            String val = artifacts.item(i).getTextContent();
-            if (!val.equals("spring-boot-starter-parent")) {
-                return val;
-            }
-        }
-        return "my-app";
-    }
-
-    private void updateStatus(String id, String status) {
-        Optional<Deployment> deploymentOpt = deploymentRepository.findById(id);
-        if (deploymentOpt.isPresent()) {
-            Deployment deployment = deploymentOpt.get();
-            deployment.setStatus(status);
-            deploymentRepository.save(deployment);
-        }
-    }
-    // 🚀 NEW: Spins up the container we just built
-    private void deployContainer(String artifactId) throws Exception {
-        String imageName = "kasion/" + artifactId + ":latest";
-        String containerName = artifactId + "-app";
-
-        System.out.println("🚀 [Deploy] Stopping old container (if any)...");
-        // Try to stop/remove old container (ignore errors if it doesn't exist)
-        try {
-            runCommand(Path.of("."), "docker", "rm", "-f", containerName);
-        } catch (Exception e) {
-            // It's fine, probably didn't exist
-        }
-
-        System.out.println("🚀 [Deploy] Starting new container: " + containerName);
-        // docker run -d -p 8081:8080 --name spring-petclinic-app kasion/spring-petclinic:latest
-        // Note: We map port 8081 on host to 8080 in container
-        runCommand(Path.of("."), "docker", "run", "-d",
-                "-p", "8081:8080",
-                "--name", containerName,
-                imageName);
-
-        System.out.println("✅ [Deploy] App is LIVE at: http://localhost:8081");
     }
 }
