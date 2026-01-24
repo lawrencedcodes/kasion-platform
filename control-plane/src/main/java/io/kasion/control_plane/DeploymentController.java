@@ -1,6 +1,7 @@
 package io.kasion.control_plane;
 
 import io.kasion.control_plane.*;
+import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.http.ResponseEntity;
 import java.util.Map;
@@ -65,7 +66,7 @@ public class DeploymentController {
         ));
     }
 
-    // NEW ENDPOINT: Check Status
+    // Check Status
     @GetMapping("/deployments/{id}")
     public ResponseEntity<?> getStatus(@PathVariable String id) {
         return deploymentRepository.findById(id)
@@ -75,4 +76,10 @@ public class DeploymentController {
                 )))
                 .orElse(ResponseEntity.notFound().build());
     }
+    @GetMapping("/api/logs/{id}")
+    public String getLogs(@PathVariable String id) {
+        StringBuilder logs = BuildEngine.BUILD_LOGS.get(id);
+        return logs != null ? logs.toString() : "Waiting for logs...";
+    }
+
 }

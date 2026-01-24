@@ -116,7 +116,13 @@
                 <span th:text="${deploy.status}">PENDING</span>
             </span>
           </td>
-          <td class="px-6 py-4 font-mono text-slate-300" th:text="${deploy.id.substring(0,8)}">#12345</td>
+          <td class="px-6 py-4 font-mono text-slate-300">
+            <a th:href="@{/logs/{id}(id=${deploy.id})}"
+               class="hover:text-indigo-400 underline decoration-indigo-500/30 underline-offset-4 transition"
+               th:text="${deploy.id.substring(0,8)}">
+              #12345
+            </a>
+          </td>
           <td class="px-6 py-4 text-white font-medium" th:text="${deploy.project.name}">App Name</td>
           <td class="px-6 py-4 font-mono text-xs text-slate-500" th:text="${deploy.commitHash}">-</td>
           <td class="px-6 py-4 text-right text-slate-500" th:text="${#temporals.format(deploy.createdAt, 'HH:mm:ss')}">10:00 AM</td>

@@ -3,6 +3,7 @@ package io.kasion.control_plane;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 
 import java.util.List;
 
@@ -35,5 +36,10 @@ public class DashboardController {
         model.addAttribute("projects", projectRepository.findAll());
 
         return "dashboard";
+    }
+    @GetMapping("/logs/{id}")
+    public String viewLogs(@PathVariable String id, Model model) {
+        model.addAttribute("deploymentId", id);
+        return "logs"; // Looks for logs.html
     }
 }

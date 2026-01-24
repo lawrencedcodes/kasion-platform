@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Build Logs | Kasion</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Matrix / Hacker Terminal Style */
+        .terminal { font-family: 'Courier New', Courier, monospace; }
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #0f172a; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+    </style>
+</head>
+<body class="bg-black text-green-400 terminal h-screen flex flex-col overflow-hidden">
+
+<div class="border-b border-gray-800 p-4 flex justify-between items-center bg-gray-900">
+    <div class="flex items-center gap-2">
+        <span class="w-3 h-3 rounded-full bg-red-500"></span>
+        <span class="w-3 h-3 rounded-full bg-yellow-500"></span>
+        <span class="w-3 h-3 rounded-full bg-green-500"></span>
+        <span class="ml-2 text-gray-400 text-sm">Deployment Logs: <span class="text-white" th:text="${deploymentId}"></span></span>
+    </div>
+    <a href="/" class="text-xs border border-gray-700 px-3 py-1 rounded hover:bg-gray-800 transition text-gray-300">← Back to Dashboard</a>
+</div>
+
+<pre id="log-output" class="flex-1 p-6 overflow-y-auto text-sm leading-relaxed whitespace-pre-wrap">Initializing log stream...</pre>
+
+<script th:inline="javascript">
+        const deploymentId = /*[[${deploymentId}]]*/ '';
+        const logContainer = document.getElementById('log-output');
+
+        function fetchLogs() {
+            fetch(`/api/logs/${deploymentId}`)
+                .then(response => response.text())
+                .then(text => {
+                    // Only update if content changed to prevent flickering
+                    if (logContainer.innerText !== text) {
+                        logContainer.innerText = text;
+                        // Auto-scroll to bottom
+                        logContainer.scrollTop = logContainer.scrollHeight;
+                    }
+                })
+                .catch(err => console.error("Log fetch failed", err));
+        }
+
+        // Poll every 1 second
+        setInterval(fetchLogs, 1000);
+        fetchLogs();
+    </script>
+</body>
+</html>
