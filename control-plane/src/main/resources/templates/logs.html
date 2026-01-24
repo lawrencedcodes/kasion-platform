@@ -30,7 +30,7 @@
         const logContainer = document.getElementById('log-output');
 
         function fetchLogs() {
-            fetch(`/api/logs/${deploymentId}`)
+            fetch(`/api/v1/logs/${deploymentId}`)
                 .then(response => response.text())
                 .then(text => {
                     // Only update if content changed to prevent flickering

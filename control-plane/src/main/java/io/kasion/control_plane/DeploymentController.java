@@ -1,7 +1,8 @@
 package io.kasion.control_plane;
 
-import io.kasion.control_plane.*;
-import org.springframework.ui.Model;
+import org.springframework.web.client.RestClient;
+import java.util.Map;
+import java.util.HashMap;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.http.ResponseEntity;
 import java.util.Map;
@@ -76,10 +77,44 @@ public class DeploymentController {
                 )))
                 .orElse(ResponseEntity.notFound().build());
     }
-    @GetMapping("/api/logs/{id}")
+    @GetMapping("/logs/{id}") // ✅ Creates /api/v1/logs/{id}
     public String getLogs(@PathVariable String id) {
         StringBuilder logs = BuildEngine.BUILD_LOGS.get(id);
         return logs != null ? logs.toString() : "Waiting for logs...";
     }
 
+    // 🆕 The "X-Ray" Endpoint
+    @GetMapping("/stats/{id}")
+    public Map<String, Object> getAppStats(@PathVariable String id) {
+        // In a real app, we would look up the dynamic port from the database.
+        // For this MVP, we know PetClinic is on 8081.
+        String baseUrl = "http://localhost:8081/actuator";
+
+        Map<String, Object> stats = new HashMap<>();
+        RestClient client = RestClient.create();
+
+        try {
+            // 1. Check Health
+            String healthJson = client.get().uri(baseUrl + "/health").retrieve().body(String.class);
+            stats.put("status", healthJson.contains("UP") ? "UP" : "DOWN");
+
+            // 2. Check Memory (Bytes used)
+            // The JSON looks like: { "measurements": [ { "value": 1.23E8 } ] }
+            Map<String, Object> memData = client.get().uri(baseUrl + "/metrics/jvm.memory.used").retrieve().body(Map.class);
+
+            // Extract the obscure value structure
+            var measurements = (java.util.List<Map<String, Object>>) memData.get("measurements");
+            Double bytes = (Double) measurements.get(0).get("value");
+
+            // Convert to Megabytes (MB)
+            long mb = Math.round(bytes / 1024 / 1024);
+            stats.put("memory", mb + " MB");
+
+        } catch (Exception e) {
+            stats.put("status", "UNREACHABLE"); // App is probably stopped
+            stats.put("memory", "0 MB");
+        }
+
+        return stats;
+    }
 }

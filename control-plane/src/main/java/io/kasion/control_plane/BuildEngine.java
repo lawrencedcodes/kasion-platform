@@ -2,7 +2,6 @@ package io.kasion.control_plane;
 
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
-
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.InputStreamReader;
@@ -118,6 +117,10 @@ public class BuildEngine {
                             "-e", "POSTGRES_PASSWORD=" + project.getDbPassword(),
                             "-e", "POSTGRES_DB=" + project.getName().toLowerCase(),
                             "postgres:16-alpine");
+                    log(deploymentId, "⏳ [DB] Waiting 10s for Database to wake up...");
+                    try {
+                        Thread.sleep(10000);
+                    } catch (InterruptedException ignored) {}
                 }
             }
 
@@ -151,8 +154,8 @@ public class BuildEngine {
                 runCmd.add("SPRING_DATASOURCE_USERNAME=" + project.getDbUser());
                 runCmd.add("-e");
                 runCmd.add("SPRING_DATASOURCE_PASSWORD=" + project.getDbPassword());
-
-                // Spring Boot specific tweak: Tell it to update schema automatically
+                runCmd.add("-e");
+                runCmd.add("MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE=*");
                 runCmd.add("-e");
                 runCmd.add("SPRING_JPA_HIBERNATE_DDL_AUTO=update");
             }
@@ -164,7 +167,13 @@ public class BuildEngine {
 
             log(deploymentId, "✅ [Deploy] LIVE at http://localhost:8081");
 
-            // ... (Status update and Save remains the same) ...
+            // 🆕 INSERT THIS BLOCK HERE 👇
+            // Re-fetch to fix "Stale Object" bug
+            Deployment freshDeployment = deploymentRepository.findById(deploymentId)
+                    .orElseThrow(() -> new RuntimeException("Deployment vanished!"));
+
+            freshDeployment.setStatus("LIVE");
+            deploymentRepository.save(freshDeployment);
 
         } catch (Exception e) {
             System.err.println("❌ [Job " + jobId + "] Build Failed!");
