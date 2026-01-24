@@ -5,12 +5,6 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <script src="https://cdn.tailwindcss.com"></script>
-  <style>
-        /* Custom neon glow for the 'live' status */
-        .status-live { color: #4ade80; text-shadow: 0 0 10px rgba(74, 222, 128, 0.5); }
-        .status-building { color: #facc15; }
-        .status-failed { color: #f87171; }
-    </style>
 </head>
 <body class="bg-slate-900 text-slate-200 font-sans antialiased min-h-screen">
 
@@ -20,16 +14,15 @@
       <div class="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center font-bold text-white">K</div>
       <span class="font-semibold text-lg tracking-tight">Kasion</span>
     </div>
-
     <div class="flex items-center gap-6">
       <button onclick="triggerDeploy()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-md text-sm font-semibold transition shadow-lg shadow-indigo-500/20 flex items-center gap-2">
-        <span>🚀</span> Deploy App
+        <span>🚀</span> New Project
       </button>
-
-      <div class="h-6 w-px bg-slate-800"></div> <div class="flex gap-4 text-sm font-medium text-slate-400 items-center">
-      <a href="#" class="hover:text-white transition">Docs</a>
-      <div class="w-8 h-8 rounded-full bg-slate-800 border border-slate-700"></div>
-    </div>
+      <div class="h-6 w-px bg-slate-800"></div>
+      <div class="flex gap-4 text-sm font-medium text-slate-400 items-center">
+        <a href="#" class="hover:text-white transition">Docs</a>
+        <div class="w-8 h-8 rounded-full bg-slate-800 border border-slate-700"></div>
+      </div>
     </div>
   </div>
 </nav>
@@ -50,9 +43,47 @@
       <div class="text-indigo-300 text-sm font-medium mb-1">System Status</div>
       <div class="text-3xl font-bold text-indigo-400 flex items-center gap-2">
         Online <span class="relative flex h-3 w-3">
-                      <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
-                      <span class="relative inline-flex rounded-full h-3 w-3 bg-indigo-500"></span>
-                    </span>
+          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
+          <span class="relative inline-flex rounded-full h-3 w-3 bg-indigo-500"></span>
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <div class="mb-10">
+    <h2 class="text-xl font-semibold text-white mb-4">Your Projects</h2>
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+
+      <div th:each="project : ${projects}" class="bg-slate-800 border border-slate-700 rounded-xl p-5 shadow-lg flex flex-col justify-between">
+        <div>
+          <div class="flex justify-between items-start mb-2">
+            <h3 class="font-bold text-lg text-white" th:text="${project.name}">App Name</h3>
+            <span th:if="${project.hasDatabase}" class="bg-green-900/30 text-green-400 text-xs px-2 py-1 rounded border border-green-900/50">Postgres Active</span>
+          </div>
+          <p class="text-xs text-slate-400 font-mono truncate mb-4" th:text="${project.githubRepoUrl}">https://github.com/...</p>
+        </div>
+
+        <div class="flex gap-2 mt-4 pt-4 border-t border-slate-700/50">
+          <button onclick="triggerDeploy()" class="flex-1 bg-slate-700 hover:bg-slate-600 text-white text-xs font-semibold py-2 rounded transition">
+            🚀 Redeploy
+          </button>
+
+          <form th:if="${!project.hasDatabase}"
+                th:action="@{/projects/{id}/database(id=${project.id})}"
+                method="post" class="flex-1">
+            <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold py-2 rounded transition shadow-lg shadow-indigo-500/20">
+              ➕ Add Database
+            </button>
+          </form>
+
+          <button th:if="${project.hasDatabase}" disabled class="flex-1 bg-slate-800 text-slate-500 text-xs font-semibold py-2 rounded cursor-not-allowed border border-slate-700">
+            ✅ DB Enabled
+          </button>
+        </div>
+      </div>
+
+      <div th:if="${projects.empty}" class="col-span-full text-center py-10 bg-slate-800/30 rounded-xl border border-dashed border-slate-700 text-slate-500">
+        No projects yet. Click "New Project" to start.
       </div>
     </div>
   </div>
@@ -60,7 +91,7 @@
   <div class="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-2xl">
     <div class="px-6 py-4 border-b border-slate-800 flex justify-between items-center bg-slate-950/30">
       <h2 class="font-semibold text-white">Recent Activity</h2>
-      <button class="text-xs font-medium bg-slate-800 hover:bg-slate-700 text-white px-3 py-1.5 rounded transition">Refresh</button>
+      <button onclick="window.location.reload()" class="text-xs font-medium bg-slate-800 hover:bg-slate-700 text-white px-3 py-1.5 rounded transition">Refresh</button>
     </div>
 
     <div class="overflow-x-auto">
@@ -77,56 +108,40 @@
         <tbody class="divide-y divide-slate-800">
         <tr th:each="deploy : ${deployments}" class="hover:bg-slate-800/50 transition duration-150">
           <td class="px-6 py-4 whitespace-nowrap">
-                                <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-800 border border-slate-700"
-                                      th:classappend="${deploy.status == 'LIVE' ? 'text-green-400 border-green-900/50 bg-green-900/10' :
-                                                       (deploy.status == 'FAILED' ? 'text-red-400 border-red-900/50 bg-red-900/10' : 'text-yellow-400 border-yellow-900/50 bg-yellow-900/10')}">
-                                    <span class="w-1.5 h-1.5 rounded-full"
-                                          th:classappend="${deploy.status == 'LIVE' ? 'bg-green-400' : (deploy.status == 'FAILED' ? 'bg-red-400' : 'bg-yellow-400')}"></span>
-                                    <span th:text="${deploy.status}">PENDING</span>
-                                </span>
+            <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-800 border border-slate-700"
+                  th:classappend="${deploy.status == 'LIVE' ? 'text-green-400 border-green-900/50 bg-green-900/10' :
+                                   (deploy.status == 'FAILED' ? 'text-red-400 border-red-900/50 bg-red-900/10' : 'text-yellow-400 border-yellow-900/50 bg-yellow-900/10')}">
+                <span class="w-1.5 h-1.5 rounded-full"
+                      th:classappend="${deploy.status == 'LIVE' ? 'bg-green-400' : (deploy.status == 'FAILED' ? 'bg-red-400' : 'bg-yellow-400')}"></span>
+                <span th:text="${deploy.status}">PENDING</span>
+            </span>
           </td>
           <td class="px-6 py-4 font-mono text-slate-300" th:text="${deploy.id.substring(0,8)}">#12345</td>
-          <td class="px-6 py-4 text-white font-medium">Spring PetClinic</td>
-          <td class="px-6 py-4 font-mono text-xs text-slate-500" th:text="${deploy.commitHash}">a1b2c3d</td>
+          <td class="px-6 py-4 text-white font-medium" th:text="${deploy.project.name}">App Name</td>
+          <td class="px-6 py-4 font-mono text-xs text-slate-500" th:text="${deploy.commitHash}">-</td>
           <td class="px-6 py-4 text-right text-slate-500" th:text="${#temporals.format(deploy.createdAt, 'HH:mm:ss')}">10:00 AM</td>
-        </tr>
-
-        <tr th:if="${deployments.empty}">
-          <td colspan="5" class="px-6 py-12 text-center text-slate-600">
-            No deployments found. Run <code class="bg-slate-800 px-1 py-0.5 rounded text-indigo-400">kasion push</code> to start.
-          </td>
         </tr>
         </tbody>
       </table>
     </div>
   </div>
 </main>
+
 <script>
     function triggerDeploy() {
-        // 1. Ask the user for the URL
-        const repoUrl = prompt("Paste public GitHub URL:", "https://github.com/spring-petclinic/spring-petclinic-rest.git");
-
-        // If they clicked Cancel, stop.
+        const repoUrl = prompt("Paste public GitHub URL:", "https://github.com/spring-projects/spring-petclinic.git");
         if (!repoUrl) return;
 
-        // 2. Find button and show loading state
         const btn = document.querySelector("button[onclick='triggerDeploy()']");
         const originalText = btn.innerHTML;
 
-        btn.innerHTML = `
-            <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white inline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-            Deploying...
-        `;
+        btn.innerHTML = `Deploying...`;
         btn.disabled = true;
 
-        // 3. Send URL to Backend
         fetch('/api/v1/deploy', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ repoUrl: repoUrl }) // <--- Sending the dynamic URL
+            body: JSON.stringify({ repoUrl: repoUrl })
         })
         .then(response => {
             if (response.ok) {

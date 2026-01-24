@@ -18,6 +18,11 @@ public class Project {
     private String buildStatus;
     private LocalDateTime lastDeployedAt;
 
+    private boolean hasDatabase = false;
+
+    private String dbUser;
+
+    private String dbPassword;
     public Project() {}
 
     public Project(String name, String ownerId) {
@@ -40,4 +45,12 @@ public class Project {
     public void setGithubRepoUrl(String githubRepoUrl) { this.githubRepoUrl = githubRepoUrl; }
     public void setBuildStatus(String buildStatus) { this.buildStatus = buildStatus; }
     public void setLastDeployedAt(LocalDateTime lastDeployedAt) { this.lastDeployedAt = lastDeployedAt; }
+    public boolean isHasDatabase() { return hasDatabase; }
+    public void setHasDatabase(boolean hasDatabase) { this.hasDatabase = hasDatabase; }
+
+    public String getDbUser() { return dbUser; }
+    public void setDbUser(String dbUser) { this.dbUser = dbUser; }
+
+    public String getDbPassword() { return dbPassword; }
+    public void setDbPassword(String dbPassword) { this.dbPassword = dbPassword; }
 }

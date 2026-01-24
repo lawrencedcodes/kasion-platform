@@ -10,9 +10,11 @@ import java.util.List;
 public class DashboardController {
 
     private final DeploymentRepository deploymentRepository;
+    private final ProjectRepository projectRepository;
 
-    public DashboardController(DeploymentRepository deploymentRepository) {
+    public DashboardController(DeploymentRepository deploymentRepository, ProjectRepository projectRepository) {
         this.deploymentRepository = deploymentRepository;
+        this.projectRepository = projectRepository;
     }
 
     @GetMapping("/")
@@ -30,6 +32,7 @@ public class DashboardController {
                 .count();
 
         model.addAttribute("projectCount", uniqueProjects);
+        model.addAttribute("projects", projectRepository.findAll());
 
         return "dashboard";
     }

@@ -1,8 +1,5 @@
 package io.kasion.control_plane;
 
-import io.kasion.control_plane.Deployment; // Ensure these match your package structure
-import io.kasion.control_plane.Project;
-import io.kasion.control_plane.DeploymentRepository;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
@@ -11,6 +8,8 @@ import java.io.File;
 import java.io.InputStreamReader;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -71,23 +70,89 @@ public class BuildEngine {
             runCommand(workspace, "docker", "build", "-t", imageName, ".");
 
             // 6. Run It
-            System.out.println("🚀 [Deploy] Stopping old container...");
+            // ... (Previous steps 1-5 remain the same) ...
+
+            // ------------------------------------------------------------
+            // 🆕 STEP 6: Database & Orchestration
+            // ------------------------------------------------------------
+
+            // A. Handle Database (if enabled)
+            if (project.isHasDatabase()) {
+                System.out.println("🗄️ [Deploy] Ensuring Database is running...");
+                String dbContainerName = project.getName().toLowerCase() + "-db";
+
+                // Check if DB is already running (we don't want to kill it and lose data!)
+                boolean dbRunning = false;
+                try {
+                    // Quick hack to check existence: try to inspect it
+                    // If this fails, the catch block runs and we create it.
+                    runCommand(workspace, "docker", "inspect", dbContainerName);
+                    dbRunning = true;
+                    System.out.println("   [DB] Database already running. Preserving it.");
+                } catch (Exception e) {
+                    System.out.println("   [DB] No database found. Creating new one...");
+                }
+
+                if (!dbRunning) {
+                    // Start Postgres 16
+                    // We use the project name to create a unique DB host
+                    runCommand(workspace, "docker", "run", "-d",
+                            "--name", dbContainerName,
+                            "--network", "kasion-net", // ⚠️ Important: We need a shared network
+                            "-e", "POSTGRES_USER=" + project.getDbUser(),
+                            "-e", "POSTGRES_PASSWORD=" + project.getDbPassword(),
+                            "-e", "POSTGRES_DB=" + project.getName().toLowerCase(),
+                            "postgres:16-alpine");
+                }
+            }
+
+            // B. Run the App (with Link to DB)
+            System.out.println("🚀 [Deploy] Stopping old app container...");
             try {
-                // Ignore errors here (if container doesn't exist yet)
                 runCommand(workspace, "docker", "rm", "-f", project.getName().toLowerCase() + "-app");
             } catch (Exception ignored) {}
 
-            System.out.println("🚀 [Deploy] Starting new container...");
-            // Run on port 8081
-            runCommand(workspace, "docker", "run", "-d",
-                    "--name", project.getName().toLowerCase() + "-app",
-                    "-p", "8081:8080",
-                    imageName);
+            System.out.println("🚀 [Deploy] Starting new app container...");
+
+            // Build the command dynamically
+            // We use a List because adding arguments conditionally is easier
+
+            List<String> runCmd = new ArrayList<>();
+            runCmd.add("docker");
+            runCmd.add("run");
+            runCmd.add("-d");
+            runCmd.add("--name");
+            runCmd.add(project.getName().toLowerCase() + "-app");
+            runCmd.add("--network");
+            runCmd.add("kasion-net"); // ⚠️ Must match DB network
+            runCmd.add("-p");
+            runCmd.add("8081:8080");
+
+            // 💉 INJECT MAGIC DATABASE VARIABLES
+            if (project.isHasDatabase()) {
+                String dbHost = project.getName().toLowerCase() + "-db";
+                String dbUrl = "jdbc:postgresql://" + dbHost + ":5432/" + project.getName().toLowerCase();
+
+                runCmd.add("-e");
+                runCmd.add("SPRING_DATASOURCE_URL=" + dbUrl);
+                runCmd.add("-e");
+                runCmd.add("SPRING_DATASOURCE_USERNAME=" + project.getDbUser());
+                runCmd.add("-e");
+                runCmd.add("SPRING_DATASOURCE_PASSWORD=" + project.getDbPassword());
+
+                // Spring Boot specific tweak: Tell it to update schema automatically
+                runCmd.add("-e");
+                runCmd.add("SPRING_JPA_HIBERNATE_DDL_AUTO=update");
+            }
+
+            runCmd.add(imageName);
+
+            // Execute the dynamic command
+            runCommand(workspace, runCmd.toArray(new String[0]));
 
             System.out.println("✅ [Deploy] LIVE at http://localhost:8081");
 
-            deployment.setStatus("LIVE");
-            deploymentRepository.save(deployment);
+            // ... (Status update and Save remains the same) ...
 
         } catch (Exception e) {
             System.err.println("❌ [Job " + jobId + "] Build Failed!");
