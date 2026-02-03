@@ -104,6 +104,7 @@
           <th class="px-6 py-4">Project</th>
           <th class="px-6 py-4">Commit</th>
           <th class="px-6 py-4 text-right">Time</th>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Actions</th>
         </tr>
         </thead>
         <tbody class="divide-y divide-slate-800">
@@ -132,6 +133,13 @@
           <td class="px-6 py-4 text-white font-medium" th:text="${deploy.project.name}">App Name</td>
           <td class="px-6 py-4 font-mono text-xs text-slate-500" th:text="${deploy.commitHash}">-</td>
           <td class="px-6 py-4 text-right text-slate-500" th:text="${#temporals.format(deploy.createdAt, 'HH:mm:ss')}">10:00 AM</td>
+          <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+            <a th:href="@{/logs/{id}(id=${deploy.id})}"
+               target="_blank"
+               class="text-blue-400 hover:text-blue-300 flex items-center gap-2">
+              <i class="fas fa-file-code"></i> View Logs
+            </a>
+          </td>
         </tr>
         </tbody>
       </table>
