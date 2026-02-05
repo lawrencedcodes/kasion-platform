@@ -3,17 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kasion | The Native Cloud for Java</title>
+    <title>Kasion | The "Just Enough" Java PaaS</title>
+    <meta name="description" content="Self-hosted Platform-as-a-Service optimized for Spring Boot. Git-push-to-deploy on commodity infrastructure.">
     <style>
         :root {
-            --bg: #050505;
-            --surface: #111;
+            --bg: #0b0c10;
+            --surface: #1f2833;
+            --surface-hover: #2a3642;
             --border: #333;
-            --text: #ededed;
-            --text-dim: #888;
-            --accent: #00ff9d; /* Terminal Green */
-            --accent-glow: rgba(0, 255, 157, 0.15);
-            --danger: #ff4b4b;
+            --text: #c5c6c7;
+            --text-heading: #66fcf1;
+            --accent: #45a29e;
+            --code-bg: #111;
+            --success: #27c93f;
         }
 
         * { box-sizing: border-box; }
@@ -21,165 +23,92 @@
         body {
             background-color: var(--bg);
             color: var(--text);
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            font-family: 'SF Mono', 'Fira Code', 'Roboto Mono', monospace; /* Architect/Dev aesthetic */
             margin: 0;
-            line-height: 1.6;
-            overflow-x: hidden;
+            line-height: 1.7;
+            -webkit-font-smoothing: antialiased;
         }
 
-        /* Utilities */
-        .container { max-width: 1000px; margin: 0 auto; padding: 0 20px; }
-        .text-center { text-align: center; }
-        .highlight { color: var(--accent); }
-        .mono { font-family: 'Courier New', Courier, monospace; }
-        
+        /* Layout */
+        .container { max-width: 1100px; margin: 0 auto; padding: 0 24px; }
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; }
+        .grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 30px; }
+
+        /* Typography */
+        h1, h2, h3 { color: var(--text-heading); margin-top: 0; font-weight: 700; letter-spacing: -0.5px; }
+        h1 { font-size: 3.5rem; line-height: 1.1; margin-bottom: 20px; }
+        h2 { font-size: 2rem; margin-bottom: 20px; border-bottom: 2px solid var(--accent); display: inline-block; padding-bottom: 5px; }
+        p { margin-bottom: 20px; font-size: 1.1rem; }
+        a { color: var(--accent); text-decoration: none; transition: all 0.2s; border-bottom: 1px dotted var(--accent); }
+        a:hover { color: var(--text-heading); border-bottom-style: solid; }
+
         /* Navigation */
-        nav {
+        nav { padding: 40px 0; display: flex; justify-content: space-between; align-items: center; }
+        .logo { font-size: 1.5rem; font-weight: bold; color: var(--text-heading); border: none; }
+        .socials a { margin-left: 20px; font-size: 0.9rem; border: none; opacity: 0.7; }
+        .socials a:hover { opacity: 1; }
+
+        /* Hero */
+        header { padding: 80px 0; border-bottom: 1px solid var(--border); }
+        .hero-sub { max-width: 700px; color: var(--text); opacity: 0.9; margin-bottom: 40px; }
+
+        /* Terminal Component */
+        .terminal {
+            background: var(--code-bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 20px;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 0.9rem;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            margin-top: 20px;
+        }
+        .terminal-header { display: flex; gap: 8px; margin-bottom: 15px; opacity: 0.5; }
+        .dot { width: 10px; height: 10px; border-radius: 50%; background: #555; }
+        .cmd { color: var(--accent); margin-bottom: 5px; display: block; }
+        .out { color: #888; display: block; margin-bottom: 2px; }
+        .success { color: var(--success); }
+
+        /* Feature Cards */
+        .card {
+            background: var(--surface);
+            padding: 30px;
+            border-radius: 4px;
+            border: 1px solid transparent;
+            transition: all 0.2s;
+        }
+        .card:hover { border-color: var(--accent); transform: translateY(-3px); }
+        .card h3 { color: var(--text-heading); font-size: 1.3rem; margin-bottom: 15px; }
+
+        /* Architecture Diagram (CSS Only) */
+        .arch-diagram {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 20px 0;
-            border-bottom: 1px solid var(--border);
-        }
-        .logo { font-weight: 800; font-size: 1.5rem; letter-spacing: -1px; }
-        .nav-links a {
-            color: var(--text-dim);
-            text-decoration: none;
-            margin-left: 20px;
-            font-size: 0.9rem;
-            transition: color 0.2s;
-        }
-        .nav-links a:hover { color: var(--accent); }
-
-        /* Hero Section */
-        header {
-            padding: 100px 0 60px 0;
+            margin: 60px 0;
             text-align: center;
-        }
-        h1 {
-            font-size: 4rem;
-            line-height: 1.1;
-            margin: 0 0 20px 0;
-            letter-spacing: -2px;
-            background: linear-gradient(to right, #fff, #888);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-        p.sub {
-            font-size: 1.5rem;
-            color: var(--text-dim);
-            max-width: 600px;
-            margin: 0 auto 40px auto;
-        }
-
-        /* The Terminal Demo */
-        .terminal-window {
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 20px;
-            max-width: 600px;
-            margin: 0 auto;
-            text-align: left;
-            box-shadow: 0 20px 50px -10px rgba(0,0,0,0.8);
             position: relative;
         }
-        .terminal-dots { display: flex; gap: 6px; margin-bottom: 15px; }
-        .dot { width: 12px; height: 12px; border-radius: 50%; background: #333; }
-        .dot.red { background: #ff5f56; }
-        .dot.yellow { background: #ffbd2e; }
-        .dot.green { background: #27c93f; }
-
-        .cmd { color: var(--accent); }
-        .output { color: var(--text-dim); font-size: 0.9rem; margin-top: 5px; }
-        .success { color: var(--accent); font-weight: bold; }
-
-        /* Features Grid */
-        .grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 20px;
-            margin: 80px 0;
-        }
-        .card {
+        .arch-box {
             background: var(--surface);
-            border: 1px solid var(--border);
-            padding: 30px;
-            border-radius: 8px;
-            transition: transform 0.2s, border-color 0.2s;
-        }
-        .card:hover {
-            transform: translateY(-5px);
-            border-color: var(--accent);
-        }
-        .card h3 { margin-top: 0; font-size: 1.2rem; }
-        .card p { color: var(--text-dim); font-size: 0.95rem; margin-bottom: 0; }
-        
-        /* The Comparison Table */
-        .comparison {
-            margin: 100px 0;
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            overflow: hidden;
-        }
-        .row {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            border-bottom: 1px solid var(--border);
-        }
-        .row:last-child { border-bottom: none; }
-        .col { padding: 20px; }
-        .col-left { background: #0a0a0a; border-right: 1px solid var(--border); }
-        .col-right { background: rgba(0, 255, 157, 0.05); }
-        
-        .bad { color: var(--danger); font-weight: bold; margin-bottom: 5px; display: block;}
-        .good { color: var(--accent); font-weight: bold; margin-bottom: 5px; display: block;}
-        
-        .code-snippet {
-            font-family: 'Courier New', monospace;
-            font-size: 0.8rem;
-            color: #666;
-            background: #000;
-            padding: 10px;
+            border: 1px solid var(--accent);
+            padding: 20px;
+            width: 200px;
             border-radius: 4px;
-            display: block;
+            position: relative;
+            z-index: 2;
         }
-
-        /* CTA Section */
-        .cta-section {
-            text-align: center;
-            padding: 100px 0;
-        }
-        .btn {
-            background: var(--text);
-            color: var(--bg);
-            padding: 16px 40px;
-            font-size: 1.1rem;
-            font-weight: 700;
-            text-decoration: none;
-            border-radius: 6px;
-            display: inline-block;
-            transition: all 0.2s;
-        }
-        .btn:hover {
-            background: var(--accent);
-            box-shadow: 0 0 30px var(--accent-glow);
-        }
+        .arch-arrow { flex-grow: 1; height: 2px; background: var(--border); position: relative; }
+        .arch-arrow::after { content: '▶'; position: absolute; right: 0; top: -7px; color: var(--border); font-size: 12px; }
 
         /* Footer */
-        footer {
-            border-top: 1px solid var(--border);
-            padding: 40px 0;
-            text-align: center;
-            color: var(--text-dim);
-            font-size: 0.8rem;
-        }
+        footer { padding: 60px 0; text-align: center; color: #555; font-size: 0.9rem; }
 
-        @media (max-width: 600px) {
+        /* Responsive */
+        @media (max-width: 768px) {
+            .grid-2, .arch-diagram { display: block; }
+            .arch-box { width: 100%; margin-bottom: 20px; }
             h1 { font-size: 2.5rem; }
-            .grid { grid-template-columns: 1fr; }
-            .row { grid-template-columns: 1fr; }
-            .col-left { border-right: none; border-bottom: 1px solid var(--border); }
         }
     </style>
 </head>
@@ -187,91 +116,116 @@
 
     <div class="container">
         <nav>
-            <div class="logo">Kasion<span class="highlight">.io</span></div>
-            <div class="nav-links">
-                <a href="#features">Features</a>
-                <a href="#compare">The Difference</a>
-                <a href="https://github.com/kasion-platform" target="_blank">GitHub</a>
+            <a href="#" class="logo">KASION_PLATFORM</a>
+            <div class="socials">
+                <a href="docs.html">DOCS</a>
+                <a href="https://github.com/lawrencedcodes" target="_blank">GITHUB</a>
+                <a href="https://twitter.com/lawrencedcodes" target="_blank">@LAWRENCEDCODES</a>
             </div>
         </nav>
 
         <header>
-            <h1>The Native Cloud<br>for Modern Java.</h1>
-            <p class="sub">Stop wrestling with Dockerfiles. Kasion turns your Spring Boot source code into a serverless deployment in seconds.</p>
-            
-            <div class="terminal-window">
-                <div class="terminal-dots">
-                    <div class="dot red"></div>
-                    <div class="dot yellow"></div>
-                    <div class="dot green"></div>
+            <div class="grid-2">
+                <div>
+                    <h1>The "Just Enough"<br>Java PaaS.</h1>
+                    <p class="hero-sub">
+                        Stop overpaying for Heroku. Stop wrestling with Kubernetes.
+                        Kasion allows you to self-host a production-grade control plane on any $5 VPS.
+                        Git-push-to-deploy, optimized specifically for Spring Boot.
+                    </p>
+                    <a href="https://github.com/lawrencedcodes" style="font-weight: bold; font-size: 1.2rem;">View Source on GitHub &rarr;</a>
                 </div>
-                <div class="mono">
-                    <div><span class="cmd">➜  ~/my-java-app</span> kasion push</div>
-                    <div class="output">🚀 Detecting Spring Boot 3.3 project...</div>
-                    <div class="output">📦 Found pom.xml (Artifact: my-app)</div>
-                    <div class="output">🔥 Initiating Furnace...</div>
-                    <div class="output">🔨 Building Native Image (GraalVM)...</div>
-                    <div class="output success">✅ [SUCCESS] Deployed to https://api.kasion.io/my-app</div>
+                <div>
+                    <div class="terminal">
+                        <div class="terminal-header">
+                            <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+                        </div>
+                        <span class="cmd">$ kasion deploy https://github.com/my/repo.git</span>
+                        <span class="out">> Cloning repository... [OK]</span>
+                        <span class="out">> Detecting Build Strategy: Maven Wrapper (mvnw)</span>
+                        <span class="out">> Compiling Artifacts (Java 21)...</span>
+                        <span class="out">> Building Docker Image: kasion-app-v1</span>
+                        <span class="out">> Starting Container on Port 8081...</span>
+                        <br>
+                        <span class="success">✅ Deployment Active: http://localhost:8081</span>
+                    </div>
                 </div>
             </div>
         </header>
 
-        <section id="features">
-            <div class="grid">
-                <div class="card">
-                    <h3>🚫 No Dockerfiles</h3>
-                    <p>We introspect your <code>pom.xml</code> to understand your project. We know how to build Spring Boot, so you don't have to script it.</p>
+        <section style="padding: 80px 0;">
+            <div class="text-center" style="max-width: 800px; margin: 0 auto 60px auto;">
+                <h2>Architectural Philosophy</h2>
+                <p>
+                    We reject the complexity of modern orchestration tools.
+                    Kasion operates as a "Meta-Application"—a Spring Boot control plane that understands
+                    and manages its sibling containers directly via the Docker Socket.
+                </p>
+            </div>
+
+            <div class="arch-diagram">
+                <div class="arch-box">
+                    <h3>Control Plane</h3>
+                    <small>Spring Boot Host</small>
                 </div>
-                <div class="card">
-                    <h3>⚡ Native Speed</h3>
-                    <p>Apps are compiled to Native Images using GraalVM. They start in 0.05s and use 80% less memory than a JVM.</p>
+                <div class="arch-arrow"></div>
+                <div class="arch-box">
+                    <h3>Build Engine</h3>
+                    <small>Async Maven/Git</small>
                 </div>
-                <div class="card">
-                    <h3>🔄 Git Integrated</h3>
-                    <p>Every <code>git push</code> creates a preview deployment. Test your branches in a live environment instantly.</p>
+                <div class="arch-arrow"></div>
+                <div class="arch-box">
+                    <h3>Runtime</h3>
+                    <small>Isolated Containers</small>
                 </div>
             </div>
         </section>
 
-        <section id="compare" class="text-center">
-            <h2>The Old Way vs. The Kasion Way</h2>
-            <p style="color:#666; margin-bottom: 40px;">Why are you still writing YAML?</p>
-            
-            <div class="comparison text-left">
-                <div class="row">
-                    <div class="col col-left">
-                        <span class="bad">The Old Way</span>
-                        <p style="font-size: 0.9rem; color: #888;">Maintain a multi-stage Dockerfile, configure a JVM memory limit, build the image, push to registry, apply Kubernetes manifest.</p>
-                        <span class="code-snippet">
-FROM openjdk:17-alpine<br>
-COPY target/*.jar app.jar<br>
-ENTRYPOINT ["java", "-jar"...
-                        </span>
-                    </div>
-                    <div class="col col-right">
-                        <span class="good">The Kasion Way</span>
-                        <p style="font-size: 0.9rem; color: #888;">Run one command. We handle the compilation, containerization, and routing.</p>
-                        <br>
-                        <span class="code-snippet" style="color: var(--accent); border: 1px solid var(--accent);">
-$ kasion push
-                        </span>
-                    </div>
+        <section style="padding: 40px 0 80px 0;">
+            <div class="grid-3">
+                <div class="card">
+                    <h3>Zero Configuration</h3>
+                    <p>
+                        No Dockerfiles required. Kasion auto-detects <code>mvnw</code> wrappers and 
+                        standard Maven layouts, injecting a hardened JRE 21 runtime automatically.
+                    </p>
+                </div>
+                <div class="card">
+                    <h3>Infrastructure Agnostic</h3>
+                    <p>
+                        Runs on Hetzner, DigitalOcean, or your basement server. 
+                        If it runs Docker and Java 21, it runs Kasion.
+                        Target hardware: AMD64 & ARM64.
+                    </p>
+                </div>
+                <div class="card">
+                    <h3>Java Native Control</h3>
+                    <p>
+                        The platform itself is a Spring Boot application. 
+                        It leverages the ecosystem you already know (Actuator, Events) 
+                        to manage your deployments.
+                    </p>
                 </div>
             </div>
         </section>
 
-        <section class="cta-section">
-            <h2>Ready to modernize your stack?</h2>
-            <p style="color: #888; margin-bottom: 30px;">Join the movement bringing Developer Experience back to Java.</p>
-            <a href="#" class="btn">Get Early Access</a>
+        <section style="background: var(--surface); padding: 60px; border-radius: 6px; text-align: center;">
+            <h2 style="border: none;">Ready to Deploy?</h2>
+            <p>Clone the control plane and start your private cloud in under 2 minutes.</p>
+            <div style="margin-top: 30px;">
+                <code style="background: #000; padding: 15px; display: inline-block; border-radius: 4px; color: var(--text-heading);">
+                    git clone https://github.com/lawrencedcodes/kasion-platform.git
+                </code>
+            </div>
         </section>
 
         <footer>
-            &copy; <span id="year"></span> Kasion Platform. Built in Public.
+            <p>
+                &copy; <script>document.write(new Date().getFullYear())</script> Kasion Platform. 
+                Open Source Software.
+            </p>
         </footer>
     </div>
-	<script>
-		document.getElementbyId('year').textContent = new Date().getFullYear();
-	</script>
+
 </body>
 </html>
