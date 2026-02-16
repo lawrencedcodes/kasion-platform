@@ -68,8 +68,15 @@ public class BuildEngine {
             log(deploymentId, "✅ [Job " + jobId + "] Code cloned.");
 
             // 4. Generate Dockerfile
-            log(deploymentId, "🧠 [Job " + jobId + "] Generating Standard JVM Strategy...");
-            String dockerfileContent = dockerfileGenerator.generateStandardBuild("21");
+            boolean hasWrapper = new File(workspace, "mvnw").exists();
+            
+            if (hasWrapper) {
+                 log(deploymentId, "🧠 [Job " + jobId + "] Found 'mvnw'. Using Project Wrapper.");
+            } else {
+                 log(deploymentId, "🧠 [Job " + jobId + "] No 'mvnw' found. Using System Maven 3.9.");
+            }
+
+            String dockerfileContent = dockerfileGenerator.generateStandardBuild("21", hasWrapper);
 
             // Write Dockerfile: Convert File -> Path for the 'Files.writeString' method
             File dockerfile = new File(workspace, "Dockerfile");

@@ -8,23 +8,45 @@ public class DockerfileGenerator {
     /**
      * 🆕 OPTION A: Standard JVM Build (Reliable, Fast, Compatible)
      * This is our new Default.
+     * @param useWrapper If true, uses the project's 'mvnw'. If false, uses system 'mvn'.
      */
-    public String generateStandardBuild(String javaVersion) {
-        return """
-            # ---------------------------------------------------------
-            # 🏗️ STAGE 1: Build (Universal Maven Strategy)
-            # ---------------------------------------------------------
-            # We use a base image that HAS Maven installed (maven:3.9)
-            # This fixes the "missing mvnw" error on older projects
-            FROM maven:3.9-eclipse-temurin-21 as builder
-            WORKDIR /app
-            
-            # 1. Copy Project Files
-            COPY . .
-            
-            # 2. Build the JAR using the system 'mvn'
-            # We skip tests to speed up the build
-            RUN mvn clean package -DskipTests
+    public String generateStandardBuild(String javaVersion, boolean useWrapper) {
+        String buildStage;
+
+        if (useWrapper) {
+            // ---------------------------------------------------------
+            // 🏗️ STRATEGY 1: Wrapper Build (Preferred)
+            // ---------------------------------------------------------
+            // Uses the project's exact Maven version via 'mvnw'
+            buildStage = """
+                FROM eclipse-temurin:21-jdk-jammy as builder
+                WORKDIR /app
+                
+                # 1. Copy Project Files
+                COPY . .
+                
+                # 2. Build using the wrapper
+                # Ensure execution permissions and skip tests
+                RUN chmod +x mvnw && ./mvnw clean package -DskipTests
+                """;
+        } else {
+            // ---------------------------------------------------------
+            // 🏗️ STRATEGY 2: Fallback Build (Universal)
+            // ---------------------------------------------------------
+            // Uses a pre-installed Maven 3.9 environment
+            buildStage = """
+                FROM maven:3.9-eclipse-temurin-21 as builder
+                WORKDIR /app
+                
+                # 1. Copy Project Files
+                COPY . .
+                
+                # 2. Build using system Maven
+                RUN mvn clean package -DskipTests
+                """;
+        }
+
+        return buildStage + """
             
             # ---------------------------------------------------------
             # 🚀 STAGE 2: Create the Runtime
@@ -37,7 +59,6 @@ public class DockerfileGenerator {
             USER kasion
             
             # Copy the JAR from the builder stage
-            # We use a wildcard *.jar because we don't know the exact name
             COPY --from=builder /app/target/*.jar app.jar
             
             # Force port 8080
