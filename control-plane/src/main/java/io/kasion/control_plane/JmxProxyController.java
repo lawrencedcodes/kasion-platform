@@ -41,4 +41,22 @@ public class JmxProxyController {
                 })
                 .orElse(ResponseEntity.notFound().build());
     }
+
+    @PostMapping("/{projectId}/threaddump")
+    public ResponseEntity<String> generateThreadDump(@PathVariable String projectId) {
+        return projectRepository.findById(projectId)
+                .map(project -> {
+                    String appContainerName = project.getName().toLowerCase() + "-app-" + project.getCurrentColor();
+                    String jolokiaUrl = "http://" + appContainerName + ":8778/jolokia/exec/java.lang:type=Threading/dumpAllThreads";
+
+                    try {
+                        // Jolokia expects a POST request for execute operations
+                        String response = restClient.post().uri(jolokiaUrl).body("[]").retrieve().body(String.class);
+                        return ResponseEntity.ok(response);
+                    } catch (Exception e) {
+                        return ResponseEntity.status(500).body("Error generating thread dump: " + e.getMessage());
+                    }
+                })
+                .orElse(ResponseEntity.notFound().build());
+    }
 }
