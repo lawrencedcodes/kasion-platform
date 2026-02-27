@@ -1,0 +1,26 @@
+---
+startDelaySeconds: 0
+ssl: false
+lowercaseOutputName: true
+lowercaseOutputLabelNames: true
+rules:
+- pattern: "java.lang<type=Memory><>HeapMemoryUsage.used"
+  name: "jvm_heap_memory_used_bytes"
+- pattern: "java.lang<type=Memory><>HeapMemoryUsage.committed"
+  name: "jvm_heap_memory_committed_bytes"
+- pattern: "java.lang<type=Memory><>HeapMemoryUsage.max"
+  name: "jvm_heap_memory_max_bytes"
+- pattern: "java.lang<type=GarbageCollector, name=(.+)><>CollectionCount"
+  name: "jvm_gc_collection_count"
+  labels:
+    gc: "$1"
+- pattern: "java.lang<type=GarbageCollector, name=(.+)><>CollectionTime"
+  name: "jvm_gc_collection_time_ms"
+  labels:
+    gc: "$1"
+- pattern: "java.lang<type=Threading><>ThreadCount"
+  name: "jvm_thread_count"
+- pattern: "java.lang<type=Threading><>DaemonThreadCount"
+  name: "jvm_daemon_thread_count"
+- pattern: "java.lang<type=ClassLoading><>LoadedClassCount"
+  name: "jvm_loaded_class_count"

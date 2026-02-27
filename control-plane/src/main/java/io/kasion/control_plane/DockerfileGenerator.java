@@ -58,12 +58,17 @@ public class DockerfileGenerator {
             RUN groupadd -r kasion && useradd -r -g kasion kasion
             USER kasion
             
+            # Copy the JMX Exporter agent and config
+            COPY control-plane/jmx_exporter/jmx_prometheus_javaagent.jar /app/jmx_prometheus_javaagent.jar
+            COPY control-plane/jmx_exporter/jmx_config.yml /app/jmx_config.yml
+
             # Copy the JAR from the builder stage
             COPY --from=builder /app/target/*.jar app.jar
             
-            # Force port 8080
+            # Expose application port and JMX Exporter port
             EXPOSE 8080
-            ENTRYPOINT ["java", "-Dserver.port=8080", "-jar", "app.jar"]
+            EXPOSE 9404
+            ENTRYPOINT ["java", "-javaagent:/app/jmx_prometheus_javaagent.jar=9404:/app/jmx_config.yml", "-Dserver.port=8080", "-jar", "app.jar"]
             """;
     }
 
