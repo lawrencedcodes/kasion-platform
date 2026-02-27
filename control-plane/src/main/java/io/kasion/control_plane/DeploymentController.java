@@ -14,7 +14,7 @@ public class DeploymentController {
     private final DeploymentRepository deploymentRepository;
     private final BuildEngine buildEngine;
 
-    public record DeployRequest(String repoUrl, boolean hasDatabase) {}
+    public record DeployRequest(String repoUrl, boolean hasDatabase, String javaVersion) {}
 
     public DeploymentController(ProjectRepository projectRepository,
                                 DeploymentRepository deploymentRepository,
@@ -42,6 +42,10 @@ public class DeploymentController {
                 });
 
         project.setHasDatabase(payload.hasDatabase());
+
+        if (payload.javaVersion() != null && !payload.javaVersion().isBlank()) {
+            project.setJavaVersion(payload.javaVersion());
+        }
 
         if (!project.getGithubRepoUrl().equals(repoUrl)) {
             project.setGithubRepoUrl(repoUrl);

@@ -75,7 +75,7 @@ public class BuildEngine {
                 throw new RuntimeException("Could not determine build tool for project.");
             }
 
-            String dockerfileContent = dockerfileGenerator.generateStandardBuild("21", buildTool);
+            String dockerfileContent = dockerfileGenerator.generateStandardBuild(project.getJavaVersion(), buildTool);
             File dockerfile = new File(workspace, "Dockerfile");
             Files.writeString(dockerfile.toPath(), dockerfileContent);
             log(deploymentId, "📝 [Job " + jobId + "] Dockerfile written to disk.");

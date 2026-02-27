@@ -26,6 +26,7 @@ public class Project {
 
     private int activePort;
     private String currentColor;
+    private String javaVersion; // <-- New field
 
     public Project() {}
 
@@ -36,6 +37,7 @@ public class Project {
         this.buildStatus = "IDLE";
         this.currentColor = "blue"; // Default to blue
         this.activePort = 8081; // Default to 8081
+        this.javaVersion = "21"; // <-- Default value
     }
 
     // --- GETTERS (Add the missing one here) ---
@@ -46,6 +48,7 @@ public class Project {
 
     // 🚨 THIS IS THE FIX:
     public String getGithubRepoUrl() { return githubRepoUrl; }
+    public String getJavaVersion() { return javaVersion; } // <-- New getter
 
     // --- SETTERS ---
     public void setGithubRepoUrl(String githubRepoUrl) { this.githubRepoUrl = githubRepoUrl; }
@@ -65,4 +68,4 @@ public class Project {
 
     public String getCurrentColor() { return currentColor; }
     public void setCurrentColor(String currentColor) { this.currentColor = currentColor; }
-}
+    public void setJavaVersion(String javaVersion) { this.javaVersion = javaVersion; } // <-- New setter}

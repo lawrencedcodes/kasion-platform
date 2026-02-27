@@ -17,8 +17,8 @@ public class DockerfileGenerator {
             // ---------------------------------------------------------
             // 🏗️ STRATEGY 1: Maven Wrapper Build
             // ---------------------------------------------------------
-            buildStage = """
-                FROM eclipse-temurin:21-jdk-jammy as builder
+            buildStage = String.format("""
+                FROM eclipse-temurin:%s-jdk-jammy as builder
                 WORKDIR /app
                 
                 # 1. Copy Project Files
@@ -27,13 +27,13 @@ public class DockerfileGenerator {
                 # 2. Build using the wrapper
                 # Ensure execution permissions and skip tests
                 RUN chmod +x mvnw && ./mvnw clean package -DskipTests
-                """;
+                """, javaVersion);
         } else if (buildTool == BuildEngine.BuildTool.GRADLE) {
             // ---------------------------------------------------------
             // 🏗️ STRATEGY 2: Gradle Wrapper Build
             // ---------------------------------------------------------
-            buildStage = """
-                FROM gradle:8-jdk21 as builder
+            buildStage = String.format("""
+                FROM gradle:8-jdk%s as builder
                 WORKDIR /app
                 
                 # 1. Copy Project Files
@@ -42,39 +42,50 @@ public class DockerfileGenerator {
                 # 2. Build using the wrapper
                 # Ensure execution permissions and skip tests
                 RUN chmod +x gradlew && ./gradlew bootJar --no-daemon
-                """;
+                """, javaVersion);
         } else {
             throw new IllegalArgumentException("Unsupported build tool: " + buildTool);
         }
 
-        return buildStage + """
-            
+        return buildStage + String.format("""
+
             # ---------------------------------------------------------
-            # 🚀 STAGE 2: Create the Runtime
+            # 🚀 STAGE 2: Extract Layers for Caching
             # ---------------------------------------------------------
-            FROM eclipse-temurin:21-jre-jammy
+            FROM eclipse-temurin:%s-jre-jammy as extractor
             WORKDIR /app
-            
+            COPY --from=builder /app/build/libs/*.jar app.jar
+            RUN java -Djarmode=layertools -jar app.jar extract
+
+            # ---------------------------------------------------------
+            # 🚀 STAGE 3: Create the Final Runtime Image
+            # ---------------------------------------------------------
+            FROM eclipse-temurin:%s-jre-jammy
+            WORKDIR /app
+
             # Security: Create a non-root user
             RUN groupadd -r kasion && useradd -r -g kasion kasion
             USER kasion
-            
-            # Copy the JMX Exporter agent and config
+
+            # Copy Agents and Layered Application
             COPY control-plane/jmx_exporter/jmx_prometheus_javaagent.jar /app/jmx_prometheus_javaagent.jar
             COPY control-plane/jmx_exporter/jmx_config.yml /app/jmx_config.yml
-
-            # Copy the Jolokia agent
             COPY control-plane/jolokia/jolokia-jvm-agent.jar /app/jolokia-jvm-agent.jar
+            COPY --from=extractor /app/dependencies/ .
+            COPY --from=extractor /app/spring-boot-loader/ .
+            COPY --from=extractor /app/snapshot-dependencies/ .
+            COPY --from=extractor /app/application/ .
 
-            # Copy the JAR from the builder stage
-            COPY --from=builder /app/build/libs/*.jar app.jar
-            
             # Expose application port and JMX Exporter port and Jolokia port
             EXPOSE 8080
             EXPOSE 9404
             EXPOSE 8778
-            ENTRYPOINT ["java", "-javaagent:/app/jmx_prometheus_javaagent.jar=9404:/app/jmx_config.yml", "-javaagent:/app/jolokia-jvm-agent.jar=port=8778,host=0.0.0.0", "-Dserver.port=8080", "-jar", "app.jar"]
-            """;
+
+            HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+              CMD curl -f http://localhost:8080/actuator/health || exit 1
+
+            ENTRYPOINT ["java", "-XX:MaxRAMPercentage=80.0", "-javaagent:/app/jmx_prometheus_javaagent.jar=9404:/app/jmx_config.yml", "-javaagent:/app/jolokia-jvm-agent.jar=port=8778,host=0.0.0.0", "org.springframework.boot.loader.JarLauncher"]
+            """, javaVersion, javaVersion);
     }
 
     /**
