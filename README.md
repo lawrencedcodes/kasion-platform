@@ -1,116 +1,146 @@
-Markdown
+# Kasion Platform
 
-# 🚀 Kasion
+> The open-source, self-hosted Platform-as-a-Service (PaaS) for Java developers.  
+> Deploy and manage Spring Boot & Gradle applications on your own infrastructure with the simplicity of Heroku and the power of a modern observability stack.
 
-> **The "Just Enough" Platform-as-a-Service for Spring Boot.**
-> Deploy production-ready Java applications to any $5 VPS in seconds.
-
-[![Build Status](https://img.shields.io/badge/build-passing-brightgreen)]()
-[![Stack](https://img.shields.io/badge/stack-Spring%20Boot%20%7C%20Docker-blue)]()
-[![Status](https://img.shields.io/badge/status-Alpha-orange)]()
+[![Status](https://img.shields.io/badge/status-Beta-blue)](https://github.com/lawrencedcodes/kasion-platform)
+[![Build Status](https://img.shields.io/badge/build-passing-brightgreen)](https://github.com/lawrencedcodes/kasion-platform)
+[![License](https://img.shields.io/badge/license-MIT-green)](https://github.com/lawrencedcodes/kasion-platform/blob/main/LICENSE)
 
 ---
 
-## 💡 The Problem
-Modern deployment options for Java developers are polarized:
-1.  **Heroku/Render:** easy to use, but prohibitively expensive at scale (starting at $25/mo per service + data transfer).
-2.  **Kubernetes:** cost-effective, but requires a PhD in YAML, specialized DevOps knowledge, and significant management overhead.
+## Overview
 
-## ⚡ The Solution
-**Kasion** is a self-hosted control plane that bridges this gap. It provides the "Heroku Experience" (Git-push-to-deploy) on your own infrastructure.
+Kasion is a Java-native control plane that bridges the gap between expensive, managed PaaS solutions and the overwhelming complexity of Kubernetes. It provides a "Git-push-to-deploy" workflow on your own low-cost VPS, giving you full control over your infrastructure without the DevOps overhead.
 
-* **Zero-Config:** Auto-detects Spring Boot projects and Maven structures.
-* **Cost Efficient:** Runs on low-cost ARM64/AMD64 VPS (Hetzner, DigitalOcean) starting at $5/mo.
-* **Java Native:** Built *by* Java developers *for* Java developers, with deep integration for JVM tuning and health monitoring.
+Designed by and for Java developers, Kasion deeply understands the applications it manages, providing automated builds, deployments, and advanced, Java-centric observability and diagnostic tools right out of the box.
+
+## Key Features
+
+Kasion is more than just a deployment script; it's a complete ecosystem for running modern Java applications.
+
+#### 🚀 Deployment & Runtime
+*   **Zero-Configuration Builds:** Paste a public GitHub URL and Kasion handles the rest.
+*   **Multi-Build System Support:** Automatically detects and builds both **Maven (`mvnw`)** and **Gradle (`gradlew`)** projects.
+*   **Zero-Downtime Deployments:** Utilizes a blue-green deployment strategy with active health checks to ensure seamless updates.
+*   **Opinionated, Optimized Runtimes:**
+    *   **Layered JAR Support:** Automatically creates optimized Docker images using Spring Boot's layered JARs for dramatically faster builds.
+    *   **Automatic JVM Tuning:** Sets optimal JVM memory flags (`-XX:MaxRAMPercentage`) to ensure your application runs reliably within its container.
+    *   **Multi-Version Java Support:** Easily configure the Java version (11, 17, 21, etc.) for your project.
+*   **Managed Databases:** Automatically provisions a dedicated **Postgres** database for your application on request, injecting credentials with zero manual setup.
+
+####  observability Suite (The "LOG-M" Stack)
+*   **Centralized Logging (Loki):** All application and system logs are automatically collected, indexed, and made searchable.
+*   **Rich Metrics (Prometheus):** A full suite of application and JVM metrics are collected via Spring Boot Actuator and a JMX Exporter, providing deep historical insight.
+*   **Integrated Visualization (Grafana):** Kasion ships with a pre-configured Grafana instance, automatically providing a beautiful dashboard for every application to visualize logs and metrics together.
+*   **Proactive Alerting (Alertmanager):** Comes with a default set of alerts for common problems like high CPU usage or application downtime.
+
+#### ⚙️ Advanced Java Tooling
+*   **JMX Console:** A secure, web-based JMX console allows for deep inspection and interaction with the running JVM.
+*   **Thread Dump Analysis:** Generate and view a full thread dump from your application with a single click to diagnose deadlocks and performance issues.
+
+#### 🔒 Security
+*   **Unified Authentication:** The entire Kasion platform (dashboard, Grafana, Prometheus, etc.) is protected by a single, unified HTTP Basic authentication layer.
+*   **Secure by Default:** All management UIs are isolated from the public internet and accessed securely through a reverse proxy.
 
 ---
 
-## 🛠️ Features
-* **🚀 Git-to-URL:** Paste any public GitHub Repository URL, and Kasion handles the rest.
-* **📦 Universal Build Engine:** Automatically detects `mvnw` wrappers or falls back to a standardized Maven 3.9 environment.
-* **🐳 Docker Orchestration:** Auto-generates `Dockerfiles`, builds images, and manages container lifecycles (Zero-touch restart/replacement).
-* **🛡️ Robust Cloning:** Uses native system Git integration to handle complex network conditions and authentication protocols.
-* **📊 Live Dashboard:** Real-time visibility into deployment status, build logs, and application health.
+## Architecture
+
+Kasion runs as a meta-application on a single host, orchestrating your applications alongside a complete observability stack using Docker.
+
+```mermaid
+graph TD
+    subgraph "User Interface"
+        UI["Kasion Dashboard (Port 80)"]
+    end
+
+    subgraph "Kasion Control Plane (Java)"
+        ControlPlane["Spring Boot Control Plane"]
+    end
+
+    subgraph "Deployed Application"
+        AppContainer["App Container (Blue/Green)"]
+        AppDB[(Postgres DB)]
+        AppContainer -- Manages --> AppDB
+    end
+
+    subgraph "Observability Stack (The LOG-M Stack)"
+        Prometheus[Prometheus]
+        Grafana[Grafana]
+        Loki[Loki]
+        Alertmanager[Alertmanager]
+        Promtail[Promtail Agent]
+    end
+
+    User[Developer] -->|HTTP/S| UI
+    UI -->|API Calls| ControlPlane
+    ControlPlane -- Clones --> GitHub[Public Git Repo]
+    ControlPlane -- Builds & Deploys --> AppContainer
+    
+    AppContainer -- Scraped by --> Prometheus
+    AppContainer -- Logs collected by --> Promtail
+    Promtail --> Loki
+    Prometheus --> Grafana
+    Loki --> Grafana
+    Prometheus -- Alerts to --> Alertmanager
+```
 
 ---
 
-## 🚦 Quick Start
+## 🚦 Getting Started
+
+Getting Kasion up and running is designed to be as simple as possible.
 
 ### Prerequisites
-* **Java 21+** (JDK)
-* **Docker** (Must be running and accessible via terminal)
-* **Git** (Installed on the host machine)
+*   A Linux-based host (or WSL2) with Docker, Java 21+, and Git installed.
+*   A public IP address for your host.
 
-### 1. Installation
-Clone the repository and enter the directory:
-```bash
-git clone [https://github.com/your-username/kasion.git](https://github.com/your-username/kasion.git)
-cd kasion
-2. Infrastructure Setup (One-Time)
-Create the dedicated bridge network for internal service communication:
+### Installation
 
-Bash
+1.  **Clone the Repository:**
+    ```bash
+    git clone https://github.com/lawrencedcodes/kasion-platform.git
+    cd kasion-platform
+    ```
 
-docker network create kasion-net
-3. Start the Control Plane
-Run the application using the Maven wrapper:
+2.  **Run the Automated Setup:**
+    We provide a script to handle all initial configuration.
+    ```bash
+    ./setup.sh
+    ```
+    This script will create the necessary Docker network and download the required Java agents.
 
-Bash
+3.  **Start the Platform:**
+    Navigate to the `control-plane` directory and start the Docker Compose stack.
+    ```bash
+    cd control-plane
+    docker-compose up -d
+    ```
 
-./mvnw spring-boot:run
-4. Deploy Your First App
-Open the dashboard at http://localhost:8080.
+4.  **Log In and Deploy:**
+    *   On the first run, the admin credentials will be printed to the console. **Save this password!**
+    *   Access the dashboard at `http://<your-host-ip>`. Log in with the provided credentials.
+    *   Click "New Project" and deploy your first application!
 
-Click "🚀 Deploy App".
+For a more detailed walkthrough, please see our [SETUP.md](SETUP.md) guide.
 
-Paste a sample repository:
+---
 
-Spring PetClinic: https://github.com/spring-projects/spring-petclinic.git
+## Usage
 
-Hello World: https://github.com/BuntyRaghani/spring-boot-hello-world.git
+Once deployed, you can access all of Kasion's features through the main dashboard.
 
-Watch the logs stream in real-time.
+*   **Grafana Dashboard:** `http://<your-host-ip>/grafana/`
+*   **Prometheus UI:** `http://<your-host-ip>/prometheus/`
+*   **JMX Console:** Navigate to your project on the Kasion dashboard and click the "JMX" button.
 
-Access your app at http://localhost:8081.
+---
 
-🏗️ Architecture
-Kasion operates as a "Meta-Application":
+## 🤝 Contributing
 
-Control Plane: A Spring Boot application that acts as the orchestrator.
+We welcome contributions of all kinds, from bug fixes to new feature proposals. Please see our [CONTRIBUTING.md](CONTRIBUTING.md) guide to get started.
 
-Build Engine: An async service that clones code, injects build strategies, and commands the local Docker Daemon.
+## 📄 License
 
-Runtime: Applications are isolated in standard OCI-compliant containers, connected via a private bridge network (kasion-net).
-
-Code snippet
-
-graph TD
-    User[User/Developer] -->|UI Dashboard| ControlPlane[Kasion Control Plane]
-    ControlPlane -->|Clone| GitHub[GitHub Repo]
-    ControlPlane -->|Build| Docker[Docker Daemon]
-    Docker -->|Run| Container[User App Container]
-    Container -->|Persist| Postgres[(Postgres DB)]
-🗺️ Roadmap
-[x] v0.1: MVP Deployment Pipeline (Git -> Docker -> Run)
-
-[x] v0.2: Universal Maven Build Strategy
-
-[ ] v0.3: Managed Database Add-ons (Postgres Auto-wiring)
-
-[ ] v0.4: Zero-Downtime Deployments (Blue/Green)
-
-[ ] v1.0: SSL/HTTPS Automatic Termination (Let's Encrypt)
-
-🤝 Contributing
-We are building the deployment tool we always wanted. Pull requests for "Spring Boot specific" features (Actuator integration, JMX monitoring) are highly encouraged.
-
-📄 License
-Copyright © 2026 Kasion. All Rights Reserved.
-
-
-### 🧠 Why this works:
-1.  **The "Mermaid" Diagram:** I added a `mermaid` block. GitHub renders this as a flowchart automatically. Executives love flowcharts.
-2.  **The "Problem/Solution" Framing:** It immediately answers "Why should I care?"
-3.  **The "Alpha" Badge:** It sets expectations. It says "This is cutting edge," not "This is broken."
-
-**Ready to copy-paste this and push?**
+Kasion is open source and licensed under the MIT License.
