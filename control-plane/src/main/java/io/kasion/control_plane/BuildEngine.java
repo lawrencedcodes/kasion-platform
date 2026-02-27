@@ -28,6 +28,8 @@ public class BuildEngine {
         this.logBroadcaster = logBroadcaster;
     }
 
+    private enum BuildTool { MAVEN, GRADLE, UNKNOWN }
+
     // 🆕 Helper to log to BOTH Console and WebSocket
     private void log(String deploymentId, String message) {
         System.out.println(message);
@@ -56,13 +58,24 @@ public class BuildEngine {
             runCommand(workspace, deploymentId,"git", "clone", repoUrl, ".");
             log(deploymentId, "✅ [Job " + jobId + "] Code cloned.");
 
-            boolean hasWrapper = new File(workspace, "mvnw").exists();
-            if (hasWrapper) {
-                 log(deploymentId, "🧠 [Job " + jobId + "] Found 'mvnw'. Using Project Wrapper.");
+            // Detect Build Tool
+            BuildTool buildTool = BuildTool.UNKNOWN;
+            boolean hasMavenWrapper = new File(workspace, "mvnw").exists();
+            boolean hasGradleWrapper = new File(workspace, "gradlew").exists();
+
+            if (hasMavenWrapper) {
+                buildTool = BuildTool.MAVEN;
+                log(deploymentId, "🧠 [Job " + jobId + "] Found 'mvnw'. Using Maven Wrapper.");
+            } else if (hasGradleWrapper) {
+                buildTool = BuildTool.GRADLE;
+                log(deploymentId, "🧠 [Job " + jobId + "] Found 'gradlew'. Using Gradle Wrapper.");
             } else {
-                 log(deploymentId, "🧠 [Job " + jobId + "] No 'mvnw' found. Using System Maven 3.9.");
+                // Fallback or error
+                log(deploymentId, "❌ [Job " + jobId + "] No 'mvnw' or 'gradlew' found. Cannot determine build tool.");
+                throw new RuntimeException("Could not determine build tool for project.");
             }
-            String dockerfileContent = dockerfileGenerator.generateStandardBuild("21", hasWrapper);
+
+            String dockerfileContent = dockerfileGenerator.generateStandardBuild("21", buildTool);
             File dockerfile = new File(workspace, "Dockerfile");
             Files.writeString(dockerfile.toPath(), dockerfileContent);
             log(deploymentId, "📝 [Job " + jobId + "] Dockerfile written to disk.");

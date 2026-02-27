@@ -10,14 +10,13 @@ public class DockerfileGenerator {
      * This is our new Default.
      * @param useWrapper If true, uses the project's 'mvnw'. If false, uses system 'mvn'.
      */
-    public String generateStandardBuild(String javaVersion, boolean useWrapper) {
+    public String generateStandardBuild(String javaVersion, BuildEngine.BuildTool buildTool) {
         String buildStage;
 
-        if (useWrapper) {
+        if (buildTool == BuildEngine.BuildTool.MAVEN) {
             // ---------------------------------------------------------
-            // 🏗️ STRATEGY 1: Wrapper Build (Preferred)
+            // 🏗️ STRATEGY 1: Maven Wrapper Build
             // ---------------------------------------------------------
-            // Uses the project's exact Maven version via 'mvnw'
             buildStage = """
                 FROM eclipse-temurin:21-jdk-jammy as builder
                 WORKDIR /app
@@ -29,21 +28,23 @@ public class DockerfileGenerator {
                 # Ensure execution permissions and skip tests
                 RUN chmod +x mvnw && ./mvnw clean package -DskipTests
                 """;
-        } else {
+        } else if (buildTool == BuildEngine.BuildTool.GRADLE) {
             // ---------------------------------------------------------
-            // 🏗️ STRATEGY 2: Fallback Build (Universal)
+            // 🏗️ STRATEGY 2: Gradle Wrapper Build
             // ---------------------------------------------------------
-            // Uses a pre-installed Maven 3.9 environment
             buildStage = """
-                FROM maven:3.9-eclipse-temurin-21 as builder
+                FROM gradle:8-jdk21 as builder
                 WORKDIR /app
                 
                 # 1. Copy Project Files
                 COPY . .
                 
-                # 2. Build using system Maven
-                RUN mvn clean package -DskipTests
+                # 2. Build using the wrapper
+                # Ensure execution permissions and skip tests
+                RUN chmod +x gradlew && ./gradlew bootJar --no-daemon
                 """;
+        } else {
+            throw new IllegalArgumentException("Unsupported build tool: " + buildTool);
         }
 
         return buildStage + """
@@ -66,7 +67,7 @@ public class DockerfileGenerator {
             COPY control-plane/jolokia/jolokia-jvm-agent.jar /app/jolokia-jvm-agent.jar
 
             # Copy the JAR from the builder stage
-            COPY --from=builder /app/target/*.jar app.jar
+            COPY --from=builder /app/build/libs/*.jar app.jar
             
             # Expose application port and JMX Exporter port and Jolokia port
             EXPOSE 8080
