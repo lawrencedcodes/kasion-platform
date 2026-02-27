@@ -52,15 +52,15 @@ Kasion runs as a meta-application on a single host, orchestrating your applicati
 ```mermaid
 graph TD
     subgraph "User Interface"
-        UI["Kasion Dashboard (Port 80)"]
+        UI["\nKasion Dashboard (Port 80)"]
     end
 
     subgraph "Kasion Control Plane (Java)"
-        ControlPlane["Spring Boot Control Plane"]
+        ControlPlane["\nSpring Boot Control Plane"]
     end
 
     subgraph "Deployed Application"
-        AppContainer["App Container (Blue/Green)"]
+        AppContainer["\nApp Container (Blue/Green)"]
         AppDB[(Postgres DB)]
         AppContainer -- Manages --> AppDB
     end
