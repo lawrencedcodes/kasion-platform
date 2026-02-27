@@ -19,8 +19,6 @@ services:
       - kasion-net
   prometheus:
     image: prom/prometheus:latest
-    ports:
-      - '9090:9090'
     volumes:
       - ./prometheus:/etc/prometheus
       - /var/run/docker.sock:/var/run/docker.sock
@@ -29,8 +27,6 @@ services:
       - kasion-net
   grafana:
     image: grafana/grafana:latest
-    ports:
-      - '3000:3000'
     volumes:
       - ./grafana/data:/var/lib/grafana
       - ./grafana/provisioning:/etc/grafana/provisioning
@@ -40,8 +36,6 @@ services:
       - kasion-net
   alertmanager:
     image: prom/alertmanager:latest
-    ports:
-      - '9093:9093'
     volumes:
       - ./alertmanager:/etc/alertmanager
     command: '--config.file=/etc/alertmanager/alertmanager.yml'
