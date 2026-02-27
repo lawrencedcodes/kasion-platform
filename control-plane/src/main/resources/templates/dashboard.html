@@ -72,6 +72,10 @@
             📊 Dashboard
           </a>
 
+          <a th:href="@{/jmx/{id}(id=${project.id})}" target="_blank" class="flex-1 bg-yellow-600 hover:bg-yellow-500 text-white text-xs font-semibold py-2 rounded transition text-center">
+            ⚙️ JMX
+          </a>
+
           <form th:if="${!project.hasDatabase}"
                 th:action="@{/projects/{id}/database(id=${project.id})}"
                 method="post" class="flex-1">

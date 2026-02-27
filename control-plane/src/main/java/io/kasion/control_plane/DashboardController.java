@@ -42,4 +42,14 @@ public class DashboardController {
         model.addAttribute("deploymentId", id);
         return "logs"; // Looks for logs.html
     }
+
+    @GetMapping("/jmx/{projectId}")
+    public String viewJmxConsole(@PathVariable String projectId, Model model) {
+        projectRepository.findById(projectId).ifPresent(project -> {
+            model.addAttribute("project", project);
+            model.addAttribute("projectId", projectId);
+        });
+        return "jmx"; // Looks for jmx.html
+    }
+
 }
