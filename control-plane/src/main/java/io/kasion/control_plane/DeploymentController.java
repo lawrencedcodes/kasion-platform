@@ -71,14 +71,7 @@ public class DeploymentController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
-    // ✅ API Only: Returns raw text.
-    // This will be accessible at: /api/v1/api/logs/{id}  <-- Note the double 'api' if we aren't careful
-    // Let's make it /api/v1/logs/{id} by removing the extra /api prefix here
-    @GetMapping("/logs/{id}")
-    public String getLogs(@PathVariable String id) {
-        StringBuilder logs = BuildEngine.BUILD_LOGS.get(id);
-        return logs != null ? logs.toString() : "Waiting for logs...";
-    }
+
 
     // 🆕 The "X-Ray" Endpoint
     @GetMapping("/stats/{id}")

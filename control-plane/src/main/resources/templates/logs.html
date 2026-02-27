@@ -33,24 +33,39 @@
 
     // Detect if user scrolls up (to stop auto-scroll)
     terminal.addEventListener('scroll', () => {
-        const isAtBottom = terminal.scrollHeight - terminal.scrollTop === terminal.clientHeight;
+        const isAtBottom = terminal.scrollHeight - terminal.scrollTop <= terminal.clientHeight + 2; // small tolerance
         isAutoScroll = isAtBottom;
     });
 
-    function fetchLogs() {
-        fetch('/api/v1/logs/' + deploymentId)
-            .then(response => response.text())
-            .then(text => {
-                logContent.textContent = text;
-                if (isAutoScroll) {
-                    terminal.scrollTop = terminal.scrollHeight;
-                }
-            });
-    }
+    // --- WebSocket Implementation ---
+    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsUrl = `${wsProtocol}//${window.location.host}/ws/logs/${deploymentId}`;
+    const socket = new WebSocket(wsUrl);
 
-    // Poll every 500ms
-    setInterval(fetchLogs, 500);
-    fetchLogs();
+    logContent.textContent = '🔌 Connecting to log stream...\n';
+
+    socket.onopen = function(event) {
+        console.log("WebSocket is open now.");
+        logContent.textContent += '✅ Connection established. Waiting for logs...\n\n';
+    };
+
+    socket.onmessage = function(event) {
+        logContent.textContent += event.data + '\n'; // Append new log line
+        if (isAutoScroll) {
+            terminal.scrollTop = terminal.scrollHeight;
+        }
+    };
+
+    socket.onclose = function(event) {
+        console.log("WebSocket is closed now.");
+        logContent.textContent += '\n\n⛔ Connection closed. Please refresh the page to reconnect.';
+    };
+
+    socket.onerror = function(error) {
+        console.error("WebSocket Error: ", error);
+        logContent.textContent += '\n\n❌ An error occurred with the log stream. Please check the browser console.';
+    };
+
 </script>
 </body>
 </html>

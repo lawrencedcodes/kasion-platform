@@ -19,25 +19,19 @@ public class BuildEngine {
     private final ProjectRepository projectRepository;
     private final DeploymentRepository deploymentRepository;
     private final DockerfileGenerator dockerfileGenerator;
+    private final LogBroadcaster logBroadcaster;
 
-    public BuildEngine(ProjectRepository projectRepository, DeploymentRepository deploymentRepository, DockerfileGenerator dockerfileGenerator) {
+    public BuildEngine(ProjectRepository projectRepository, DeploymentRepository deploymentRepository, DockerfileGenerator dockerfileGenerator, LogBroadcaster logBroadcaster) {
         this.projectRepository = projectRepository;
         this.deploymentRepository = deploymentRepository;
         this.dockerfileGenerator = dockerfileGenerator;
+        this.logBroadcaster = logBroadcaster;
     }
-    // 🆕 In-Memory Log Storage (deploymentId -> Log Content)
-    public static final Map<String, StringBuilder> BUILD_LOGS = new ConcurrentHashMap<>();
 
-    // ... existing constructor ...
-
-    // 🆕 Helper to log to BOTH Console and Memory
-    // ✅ CORRECT CODE
+    // 🆕 Helper to log to BOTH Console and WebSocket
     private void log(String deploymentId, String message) {
-        System.out.println(message); // <--- Must be System.out.println here!
-
-        // Save to memory for the dashboard
-        BUILD_LOGS.computeIfAbsent(deploymentId, k -> new StringBuilder())
-                .append(message).append("\n");
+        System.out.println(message);
+        logBroadcaster.broadcast(deploymentId, message);
     }
     @Async
     public void startBuild(String deploymentId) {
