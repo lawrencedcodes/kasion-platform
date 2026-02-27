@@ -129,6 +129,12 @@ public class BuildEngine {
             runCmd.add("kasion-net");
             runCmd.add("-p");
             runCmd.add(nextPort + ":8080");
+            runCmd.add("--label");
+            runCmd.add("kasion.scrape=true");
+
+            // Always expose actuator endpoints for health checks and metrics
+            runCmd.add("-e");
+            runCmd.add("MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE=health,prometheus");
 
             if (project.isHasDatabase()) {
                 String dbHost = project.getName().toLowerCase() + "-db";
@@ -140,8 +146,6 @@ public class BuildEngine {
                 runCmd.add("SPRING_DATASOURCE_USERNAME=" + project.getDbUser());
                 runCmd.add("-e");
                 runCmd.add("SPRING_DATASOURCE_PASSWORD=" + project.getDbPassword());
-                runCmd.add("-e");
-                runCmd.add("MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE=*");
                 runCmd.add("-e");
                 runCmd.add("SPRING_JPA_HIBERNATE_DDL_AUTO=update");
             }

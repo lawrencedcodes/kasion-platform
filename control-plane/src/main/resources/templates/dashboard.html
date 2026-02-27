@@ -68,6 +68,10 @@
             🚀 Redeploy
           </button>
 
+          <a href="http://localhost:3000" target="_blank" class="flex-1 bg-gray-700 hover:bg-gray-600 text-white text-xs font-semibold py-2 rounded transition text-center">
+            📊 Dashboard
+          </a>
+
           <form th:if="${!project.hasDatabase}"
                 th:action="@{/projects/{id}/database(id=${project.id})}"
                 method="post" class="flex-1">
