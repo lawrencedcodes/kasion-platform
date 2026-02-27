@@ -9,13 +9,9 @@
         :root {
             --bg: #0b0c10;
             --surface: #1f2833;
-            --surface-hover: #2a3642;
-            --border: #333;
             --text: #c5c6c7;
             --text-heading: #66fcf1;
             --accent: #45a29e;
-            --code-bg: #111;
-            --success: #27c93f;
         }
 
         * { box-sizing: border-box; }
@@ -29,36 +25,30 @@
             -webkit-font-smoothing: antialiased;
         }
 
-        /* Layout */
         .container { max-width: 1100px; margin: 0 auto; padding: 0 24px; }
-        
-        /* Typography */
-        h1, h2, h3, h4 { color: var(--text-heading); margin-top: 1.5em; font-weight: 700; letter-spacing: -0.5px; }
-        h1 { font-size: 3rem; line-height: 1.1; margin-bottom: 20px; margin-top: 0; }
-        h2 { font-size: 1.8rem; border-bottom: 1px solid var(--border); padding-bottom: 10px; margin-bottom: 20px; }
-        h3 { font-size: 1.4rem; margin-bottom: 15px; }
-        p { margin-bottom: 20px; font-size: 1.1rem; }
-        ul, ol { margin-bottom: 20px; padding-left: 20px; }
-        li { margin-bottom: 10px; }
-        a { color: var(--accent); text-decoration: none; transition: all 0.2s; border-bottom: 1px dotted var(--accent); }
-        a:hover { color: var(--text-heading); border-bottom-style: solid; }
-        
-        code { background: var(--surface); padding: 2px 6px; border-radius: 4px; font-size: 0.9em; font-family: inherit; color: var(--text-heading); }
-        pre { background: var(--code-bg); padding: 20px; border-radius: 6px; overflow-x: auto; border: 1px solid var(--border); margin-bottom: 30px; }
-        pre code { background: none; padding: 0; color: inherit; }
+        h1 { font-size: 3rem; color: var(--text-heading); }
+        p { font-size: 1.3rem; opacity: 0.8; max-width: 800px; }
+        a.button {
+            background: var(--accent);
+            color: var(--bg);
+            padding: 15px 30px;
+            border-radius: 4px;
+            text-decoration: none;
+            font-weight: bold;
+            font-size: 1.2rem;
+            transition: all 0.2s;
+            display: inline-block;
+            margin-top: 20px;
+        }
+        a.button:hover { background: var(--text-heading); transform: translateY(-2px); }
 
-        /* Navigation */
-        nav { padding: 40px 0; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); margin-bottom: 60px; }
-        .logo { font-size: 1.5rem; font-weight: bold; color: var(--text-heading); border: none; }
-        .nav-links a { margin-left: 20px; font-size: 0.9rem; border: none; opacity: 0.7; }
+        nav { padding: 40px 0; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #333; margin-bottom: 60px; }
+        .logo { font-size: 1.5rem; font-weight: bold; color: var(--text-heading); text-decoration: none; }
+        .nav-links a { margin-left: 20px; font-size: 0.9rem; color: var(--text); text-decoration: none; opacity: 0.7; }
         .nav-links a:hover, .nav-links a.active { opacity: 1; color: var(--text-heading); }
+        
+        footer { padding: 60px 0; text-align: center; color: #555; font-size: 0.9rem; border-top: 1px solid #333; margin-top: 80px; }
 
-        /* Documentation Specifics */
-        .doc-section { margin-bottom: 60px; }
-        .note { background: rgba(69, 162, 158, 0.1); border-left: 4px solid var(--accent); padding: 15px 20px; margin-bottom: 20px; border-radius: 0 4px 4px 0; }
-
-        /* Footer */
-        footer { padding: 60px 0; text-align: center; color: #555; font-size: 0.9rem; border-top: 1px solid var(--border); margin-top: 80px; }
     </style>
 </head>
 <body>
@@ -68,95 +58,20 @@
             <a href="index.html" class="logo">KASION_PLATFORM</a>
             <div class="nav-links">
                 <a href="index.html">HOME</a>
-                <a href="docs.html" class="active">DOCS</a>
+                <a href="#" class="active">DOCS</a>
                 <a href="https://github.com/lawrencedcodes/kasion-platform" target="_blank">GITHUB</a>
             </div>
         </nav>
 
-        <main>
-            <header style="margin-bottom: 60px;">
-                <h1>Documentation</h1>
-                <p style="font-size: 1.3rem; opacity: 0.8; max-width: 800px;">
-                    Comprehensive guide to installing, configuring, and deploying with Kasion.
-                </p>
-            </header>
-
-            <div class="doc-section">
-                <h2>1. The Mission</h2>
-                <p>
-                    Kasion is a self-hosted Platform-as-a-Service (PaaS) specifically optimized for Spring Boot applications.
-                    Our goal is to provide the "Heroku Experience" (Git-push-to-deploy) on commodity infrastructure.
-                </p>
-                <div class="note">
-                    <strong>Core Philosophy:</strong> "Just Enough." No Kubernetes complexity. No heavy orchestration. Just Docker and Java.
-                </div>
-            </div>
-
-            <div class="doc-section">
-                <h2>2. Getting Started</h2>
-                
-                <h3>Prerequisites</h3>
-                <ul>
-                    <li><strong>Java 21+</strong> (JDK)</li>
-                    <li><strong>Docker</strong> (Must be running and accessible via terminal)</li>
-                    <li><strong>Git</strong> (Installed on the host machine)</li>
-                </ul>
-
-                <h3>Installation</h3>
-                <p>1. Clone the repository:</p>
-                <pre><code>git clone https://github.com/lawrencedcodes/kasion-platform.git
-cd kasion-platform</code></pre>
-
-                <p>2. Create the infrastructure network:</p>
-                <pre><code>docker network create kasion-net</code></pre>
-
-                <p>3. Start the Control Plane:</p>
-                <pre><code>./mvnw spring-boot:run</code></pre>
-                
-                <p>
-                    Once running, the dashboard is accessible at <a href="http://localhost:8080">http://localhost:8080</a>.
-                </p>
-            </div>
-
-            <div class="doc-section">
-                <h2>3. System Architecture</h2>
-                <p>Kasion operates as a "Meta-Application" (The Control Plane) that manages sibling containers.</p>
-
-                <h3>Components</h3>
-                <ul>
-                    <li>
-                        <strong>The Control Plane (Host):</strong> 
-                        Spring Boot Application (Java 21). Connects to the Host Docker Socket to orchestrate containers.
-                    </li>
-                    <li>
-                        <strong>The Build Engine (Async Service):</strong>
-                        Handles cloning, build strategy detection (`mvnw` vs system Maven), artifact compilation, and Docker image generation.
-                    </li>
-                    <li>
-                        <strong>The Runtime (User Apps):</strong>
-                        Deployed as isolated Docker containers on the <code>kasion-net</code> bridge network.
-                    </li>
-                </ul>
-            </div>
-
-            <div class="doc-section">
-                <h2>4. Development Guidelines</h2>
-                <p>If you are contributing to Kasion or debugging deployment issues:</p>
-                <ul>
-                    <li><strong>Network Isolation:</strong> All user apps launch on <code>kasion-net</code>.</li>
-                    <li><strong>Resource Limits:</strong> Docker commands consider memory limits to prevent OOM kills on small VPS instances.</li>
-                    <li><strong>Java 21:</strong> The platform leverages modern Java features like Records and Virtual Threads.</li>
-                </ul>
-            </div>
-
-            <div class="doc-section">
-                <h2>5. Roadmap</h2>
-                <ul>
-                    <li>✅ <strong>v0.2:</strong> Universal Maven Build Strategy & Basic Orchestration.</li>
-                    <li>🚧 <strong>v0.3:</strong> Managed Databases (Postgres auto-provisioning).</li>
-                    <li>🚧 <strong>v0.4:</strong> Zero-Downtime Deployment (Blue/Green switchovers).</li>
-                </ul>
-            </div>
+        <main style="text-align: center; padding: 80px 0;">
+            <h1>Our Documentation Has a New Home</h1>
+            <p>
+                The Kasion Platform is evolving quickly! To ensure you always have the most up-to-date information,
+                our documentation now lives directly in our GitHub repository.
+            </p>
+            <a href="https://github.com/lawrencedcodes/kasion-platform#readme" class="button" target="_blank">
+                View Latest Docs on GitHub
+            </a>
         </main>
 
         <footer>

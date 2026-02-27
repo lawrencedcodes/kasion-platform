@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Kasion | The "Just Enough" Java PaaS</title>
     <meta name="description" content="Self-hosted Platform-as-a-Service optimized for Spring Boot. Git-push-to-deploy on commodity infrastructure.">
+    <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
     <style>
         :root {
             --bg: #0b0c10;
@@ -127,11 +128,10 @@
         <header>
             <div class="grid-2">
                 <div>
-                    <h1>The "Just Enough"<br>Java PaaS.</h1>
+                    <h1>Deploy Java.<br>Not YAML.</h1>
                     <p class="hero-sub">
-                        Stop overpaying for Heroku. Stop wrestling with Kubernetes.
-                        Kasion allows you to self-host a production-grade control plane on any $5 VPS.
-                        Git-push-to-deploy, optimized specifically for Spring Boot.
+                        Kasion is the open-source, self-hosted PaaS for Java developers who value their time.
+                        Get the simplicity of Heroku and the power of an enterprise-grade observability stack on your own cheap VPS.
                     </p>
                     <a href="https://github.com/lawrencedcodes" style="font-weight: bold; font-size: 1.2rem;">View Source on GitHub &rarr;</a>
                 </div>
@@ -140,14 +140,16 @@
                         <div class="terminal-header">
                             <div class="dot"></div><div class="dot"></div><div class="dot"></div>
                         </div>
-                        <span class="cmd">$ kasion deploy https://github.com/my/repo.git</span>
+                        <span class="cmd">$ git push kasion main</span>
+                        <span class="out">> Authenticating user... [OK]</span>
                         <span class="out">> Cloning repository... [OK]</span>
-                        <span class="out">> Detecting Build Strategy: Maven Wrapper (mvnw)</span>
-                        <span class="out">> Compiling Artifacts (Java 21)...</span>
-                        <span class="out">> Building Docker Image: kasion-app-v1</span>
-                        <span class="out">> Starting Container on Port 8081...</span>
+                        <span class="out">> Detecting Build Strategy: Gradle Wrapper (gradlew)</span>
+                        <span class="out">> Building Optimized Image (Layered JARs)...</span>
+                        <span class="out">> Provisioning Observability (Prometheus, Grafana, Loki)...</span>
+                        <span class="out">> Starting Container (Blue/Green Deployment)...</span>
+                        <span class="out">> Running Health Checks... [OK]</span>
                         <br>
-                        <span class="success">✅ Deployment Active: http://localhost:8081</span>
+                        <span class="success">✅ Deployment Live: https://my-app.kasion.io</span>
                     </div>
                 </div>
             </div>
@@ -155,56 +157,80 @@
 
         <section style="padding: 80px 0;">
             <div class="text-center" style="max-width: 800px; margin: 0 auto 60px auto;">
-                <h2>Architectural Philosophy</h2>
+                <h2>An Entire DevOps Platform in a Box</h2>
                 <p>
-                    We reject the complexity of modern orchestration tools.
-                    Kasion operates as a "Meta-Application"—a Spring Boot control plane that understands
-                    and manages its sibling containers directly via the Docker Socket.
+                    Kasion runs as a meta-application on a single host, orchestrating your apps alongside a complete, pre-configured observability stack using Docker.
                 </p>
             </div>
 
-            <div class="arch-diagram">
-                <div class="arch-box">
-                    <h3>Control Plane</h3>
-                    <small>Spring Boot Host</small>
-                </div>
-                <div class="arch-arrow"></div>
-                <div class="arch-box">
-                    <h3>Build Engine</h3>
-                    <small>Async Maven/Git</small>
-                </div>
-                <div class="arch-arrow"></div>
-                <div class="arch-box">
-                    <h3>Runtime</h3>
-                    <small>Isolated Containers</small>
-                </div>
-            </div>
+            <pre class="mermaid" style="background: none; text-align: center; font-size: 1rem;">
+graph TD
+    subgraph "User Interface"
+        UI["Kasion Dashboard (Port 80)"]
+    end
+
+    subgraph "Kasion Control Plane (Java)"
+        ControlPlane["Spring Boot Control Plane"]
+    end
+
+    subgraph "Deployed Application"
+        AppContainer["App Container (Blue/Green)"]
+        AppDB[(Postgres DB)]
+        AppContainer -- Manages --> AppDB
+    end
+
+    subgraph "Observability Stack (The LOG-M Stack)"
+        Prometheus[Prometheus]
+        Grafana[Grafana]
+        Loki[Loki]
+        Alertmanager[Alertmanager]
+        Promtail[Promtail Agent]
+    end
+
+    User[Developer] -->|HTTP/S| UI
+    UI -->|API Calls| ControlPlane
+    ControlPlane -- Clones --> GitHub[Public Git Repo]
+    ControlPlane -- Builds & Deploys --> AppContainer
+    
+    AppContainer -- Scraped by --> Prometheus
+    AppContainer -- Logs collected by --> Promtail
+    Promtail --> Loki
+    Prometheus --> Grafana
+    Loki --> Grafana
+    Prometheus -- Alerts to --> Alertmanager
+            </pre>
+            <script>mermaid.initialize({startOnLoad:true});</script>
         </section>
 
-        <section style="padding: 40px 0 80px 0;">
+        <section style="padding: 40px 0 80px 0; border-top: 1px solid var(--border);">
+            <div class="text-center" style="max-width: 800px; margin: 0 auto 60px auto;">
+                <h2>A Feature-Complete Platform</h2>
+                <p>Kasion provides the deployment, observability, and diagnostic tools you need, all integrated and secured by default.</p>
+            </div>
             <div class="grid-3">
                 <div class="card">
-                    <h3>Zero Configuration</h3>
-                    <p>
-                        No Dockerfiles required. Kasion auto-detects <code>mvnw</code> wrappers and 
-                        standard Maven layouts, injecting a hardened JRE 21 runtime automatically.
-                    </p>
+                    <h3>🚀 Deployment & Runtime</h3>
+                    <p>Zero-config builds for Maven/Gradle, Blue/Green deployments, layered JAR optimization, and automatic JVM memory tuning.</p>
                 </div>
                 <div class="card">
-                    <h3>Infrastructure Agnostic</h3>
-                    <p>
-                        Runs on Hetzner, DigitalOcean, or your basement server. 
-                        If it runs Docker and Java 21, it runs Kasion.
-                        Target hardware: AMD64 & ARM64.
-                    </p>
+                    <h3>📈 Full Observability Stack</h3>
+                    <p>Get a pre-configured Grafana dashboard for every app with metrics from Prometheus, logs from Loki, and alerts from Alertmanager.</p>
                 </div>
                 <div class="card">
-                    <h3>Java Native Control</h3>
-                    <p>
-                        The platform itself is a Spring Boot application. 
-                        It leverages the ecosystem you already know (Actuator, Events) 
-                        to manage your deployments.
-                    </p>
+                    <h3>⚙️ Advanced Java Tooling</h3>
+                    <p>Debug production issues with a secure web-based JMX console and one-click thread dump generation. A feature no generic PaaS can offer.</p>
+                </div>
+                 <div class="card">
+                    <h3>📦 Managed Databases</h3>
+                    <p>Toggle a switch to automatically provision a dedicated, networked Postgres database for any application, with credentials auto-injected.</p>
+                </div>
+                <div class="card">
+                    <h3>🔒 Secure by Default</h3>
+                    <p>The entire platform, including the Grafana and Prometheus UIs, is protected by a unified authentication layer. No open ports.</p>
+                </div>
+                <div class="card">
+                    <h3>🌐 Self-Hosted Control</h3>
+                    <p>Run Kasion on any cloud provider or on-premise server. You own your infrastructure, your data, and your platform.</p>
                 </div>
             </div>
         </section>
