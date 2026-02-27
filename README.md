@@ -65,7 +65,7 @@ graph TD
         AppContainer -- Manages --> AppDB
     end
 
-    subgraph "Observability Stack (The LOG-M Stack)"
+    subgraph "Observability Stack"
         Prometheus[Prometheus]
         Grafana[Grafana]
         Loki[Loki]
