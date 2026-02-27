@@ -156,8 +156,29 @@ public class BuildEngine {
             runCommand(workspace, deploymentId, runCmd.toArray(new String[0]));
 
             log(deploymentId, "🔬 [Deploy] Health check on new container...");
-            // Simple health check: wait 10 seconds
-            try { Thread.sleep(10000); } catch (InterruptedException ignored) {}
+            boolean isHealthy = false;
+            Instant deadline = Instant.now().plusSeconds(120); // 2 minute timeout
+            RestClient restClient = RestClient.create();
+
+            while (Instant.now().isBefore(deadline)) {
+                try {
+                    String healthUrl = "http://localhost:" + nextPort + "/actuator/health";
+                    log(deploymentId, "   [Health] Pinging " + healthUrl);
+                    String response = restClient.get().uri(healthUrl).retrieve().body(String.class);
+                    if (response != null && response.contains("\"status\":\"UP\"")) {
+                        isHealthy = true;
+                        log(deploymentId, "✅ [Health] Container is UP and healthy!");
+                        break;
+                    }
+                } catch (Exception e) {
+                    log(deploymentId, "   [Health] Retrying... container not ready yet.");
+                }
+                try { Thread.sleep(5000); } catch (InterruptedException ignored) {}
+            }
+
+            if (!isHealthy) {
+                throw new RuntimeException("Health check failed: Container did not become healthy within 2 minutes.");
+            }
 
             log(deploymentId, "🔄 [Deploy] Updating Nginx configuration to point to port " + nextPort);
             String nginxConfig = "server { listen 80; location / { proxy_pass http://host.docker.internal:" + nextPort + "; } }";
