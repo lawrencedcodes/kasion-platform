@@ -62,13 +62,17 @@ public class DockerfileGenerator {
             COPY control-plane/jmx_exporter/jmx_prometheus_javaagent.jar /app/jmx_prometheus_javaagent.jar
             COPY control-plane/jmx_exporter/jmx_config.yml /app/jmx_config.yml
 
+            # Copy the Jolokia agent
+            COPY control-plane/jolokia/jolokia-jvm-agent.jar /app/jolokia-jvm-agent.jar
+
             # Copy the JAR from the builder stage
             COPY --from=builder /app/target/*.jar app.jar
             
-            # Expose application port and JMX Exporter port
+            # Expose application port and JMX Exporter port and Jolokia port
             EXPOSE 8080
             EXPOSE 9404
-            ENTRYPOINT ["java", "-javaagent:/app/jmx_prometheus_javaagent.jar=9404:/app/jmx_config.yml", "-Dserver.port=8080", "-jar", "app.jar"]
+            EXPOSE 8778
+            ENTRYPOINT ["java", "-javaagent:/app/jmx_prometheus_javaagent.jar=9404:/app/jmx_config.yml", "-javaagent:/app/jolokia-jvm-agent.jar=port=8778,host=0.0.0.0", "-Dserver.port=8080", "-jar", "app.jar"]
             """;
     }
 
