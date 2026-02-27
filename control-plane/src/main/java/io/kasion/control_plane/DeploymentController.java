@@ -14,6 +14,8 @@ public class DeploymentController {
     private final DeploymentRepository deploymentRepository;
     private final BuildEngine buildEngine;
 
+    public record DeployRequest(String repoUrl, boolean hasDatabase) {}
+
     public DeploymentController(ProjectRepository projectRepository,
                                 DeploymentRepository deploymentRepository,
                                 BuildEngine buildEngine) {
@@ -23,8 +25,8 @@ public class DeploymentController {
     }
 
     @PostMapping("/deploy")
-    public ResponseEntity<?> deploy(@RequestBody Map<String, String> payload) {
-        String repoUrl = payload.get("repoUrl");
+    public ResponseEntity<?> deploy(@RequestBody DeployRequest payload) {
+        String repoUrl = payload.repoUrl();
         if (repoUrl == null || repoUrl.isBlank()) {
             return ResponseEntity.badRequest().body(Map.of("error", "Repo URL is required"));
         }
@@ -39,10 +41,13 @@ public class DeploymentController {
                     return projectRepository.save(newProject);
                 });
 
+        project.setHasDatabase(payload.hasDatabase());
+
         if (!project.getGithubRepoUrl().equals(repoUrl)) {
             project.setGithubRepoUrl(repoUrl);
-            projectRepository.save(project);
         }
+        projectRepository.save(project);
+
 
         Deployment deployment = new Deployment(project, "PENDING");
         deploymentRepository.save(deployment);

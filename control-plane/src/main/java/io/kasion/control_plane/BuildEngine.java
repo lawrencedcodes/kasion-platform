@@ -16,10 +16,12 @@ import java.util.concurrent.ConcurrentHashMap;
 @Service
 public class BuildEngine {
 
+    private final ProjectRepository projectRepository;
     private final DeploymentRepository deploymentRepository;
     private final DockerfileGenerator dockerfileGenerator;
 
-    public BuildEngine(DeploymentRepository deploymentRepository, DockerfileGenerator dockerfileGenerator) {
+    public BuildEngine(ProjectRepository projectRepository, DeploymentRepository deploymentRepository, DockerfileGenerator dockerfileGenerator) {
+        this.projectRepository = projectRepository;
         this.deploymentRepository = deploymentRepository;
         this.dockerfileGenerator = dockerfileGenerator;
     }
@@ -40,7 +42,6 @@ public class BuildEngine {
     @Async
     public void startBuild(String deploymentId) {
         // 1. Fetch Deployment
-        // If your Deployment ID is a String in the DB, change 'Long' to 'String' above and below.
         Deployment deployment = deploymentRepository.findById(deploymentId)
                 .orElseThrow(() -> new RuntimeException("Deployment not found: " + deploymentId));
 
@@ -51,106 +52,90 @@ public class BuildEngine {
 
         File workspace = null;
         try {
-            // 2. Create Workspace (Path -> File)
-            // We use Path to create the dir, but convert to File for runCommand
             Path workspacePath = Files.createTempDirectory("kasion-build-" + jobId);
             workspace = workspacePath.toFile();
 
             log(deploymentId, "📂 [Job " + jobId + "] Workspace created: " + workspace.getAbsolutePath());
 
-            // 3. Clone (Native Git)
             String repoUrl = project.getGithubRepoUrl();
             log(deploymentId, "⬇️ [Job " + jobId + "] Cloning: " + repoUrl);
-
-            // Explicitly passing 'workspace' (File) as the first argument
             runCommand(workspace, deploymentId,"git", "clone", repoUrl, ".");
-
             log(deploymentId, "✅ [Job " + jobId + "] Code cloned.");
 
-            // 4. Generate Dockerfile
             boolean hasWrapper = new File(workspace, "mvnw").exists();
-            
             if (hasWrapper) {
                  log(deploymentId, "🧠 [Job " + jobId + "] Found 'mvnw'. Using Project Wrapper.");
             } else {
                  log(deploymentId, "🧠 [Job " + jobId + "] No 'mvnw' found. Using System Maven 3.9.");
             }
-
             String dockerfileContent = dockerfileGenerator.generateStandardBuild("21", hasWrapper);
-
-            // Write Dockerfile: Convert File -> Path for the 'Files.writeString' method
             File dockerfile = new File(workspace, "Dockerfile");
             Files.writeString(dockerfile.toPath(), dockerfileContent);
-
             log(deploymentId, "📝 [Job " + jobId + "] Dockerfile written to disk.");
 
-            // 5. Build Docker Image
-            String imageName = "kasion/" + project.getName().toLowerCase() + ":latest"; // Ensure lowercase for Docker
+            String imageName = "kasion/" + project.getName().toLowerCase() + ":" + deployment.getId();
             log(deploymentId, "🐳 [Job " + jobId + "] Building Image: " + imageName);
-
             runCommand(workspace, deploymentId, "docker", "build", "-t", imageName, ".");
 
-            // 6. Run It
-            // ... (Previous steps 1-5 remain the same) ...
-
-            // ------------------------------------------------------------
-            // 🆕 STEP 6: Database & Orchestration
-            // ------------------------------------------------------------
-
-            // A. Handle Database (if enabled)
+            // NEW: Database Provisioning Logic
             if (project.isHasDatabase()) {
-                log(deploymentId, "🗄️ [Deploy] Ensuring Database is running...");
+                log(deploymentId, "🔑 [Database] Provisioning requested for " + project.getName());
                 String dbContainerName = project.getName().toLowerCase() + "-db";
 
-                // Check if DB is already running (we don't want to kill it and lose data!)
-                boolean dbRunning = false;
+                // Check if a DB container already exists for this project
+                // A simple check is to inspect for a container with the name
                 try {
-                    // Quick hack to check existence: try to inspect it
-                    // If this fails, the catch block runs and we create it.
-                    runCommand(workspace, deploymentId,"docker", "inspect", dbContainerName);
-                    dbRunning = true;
-                    log(deploymentId, "   [DB] Database already running. Preserving it.");
+                    runCommand(new File("."), deploymentId, "docker", "inspect", dbContainerName);
+                    log(deploymentId, "💡 [Database] Container '" + dbContainerName + "' already exists. Skipping creation.");
                 } catch (Exception e) {
-                    log(deploymentId, "   [DB] No database found. Creating new one...");
-                }
+                    // This is expected if the container doesn't exist
+                    log(deploymentId, "🔎 [Database] No existing container found. Creating new Postgres database...");
 
-                if (!dbRunning) {
-                    // Start Postgres 16
-                    // We use the project name to create a unique DB host
-                    runCommand(workspace, deploymentId,"docker", "run", "-d",
+                    String dbUser = "kasion_user";
+                    String dbPassword = UUID.randomUUID().toString();
+
+                    project.setDbUser(dbUser);
+                    project.setDbPassword(dbPassword);
+                    projectRepository.save(project);
+                    log(deploymentId, "🔐 [Database] Credentials generated and saved.");
+
+                    runCommand(new File("."), deploymentId,
+                            "docker", "run", "-d",
                             "--name", dbContainerName,
-                            "--network", "kasion-net", // ⚠️ Important: We need a shared network
-                            "-e", "POSTGRES_USER=" + project.getDbUser(),
-                            "-e", "POSTGRES_PASSWORD=" + project.getDbPassword(),
+                            "--network", "kasion-net",
+                            "-e", "POSTGRES_USER=" + dbUser,
+                            "-e", "POSTGRES_PASSWORD=" + dbPassword,
                             "-e", "POSTGRES_DB=" + project.getName().toLowerCase(),
-                            "postgres:16-alpine");
-                    log(deploymentId, "⏳ [DB] Waiting 10s for Database to wake up...");
-                    try {
-                        Thread.sleep(10000);
-                    } catch (InterruptedException ignored) {}
+                            "--restart", "always",
+                            "-m", "256m",
+                            "postgres:15-alpine"
+                    );
+                    log(deploymentId, "✅ [Database] Postgres container started successfully!");
                 }
             }
 
-            // B. Run the App (with Link to DB)
-            log(deploymentId, "🚀 [Deploy] Stopping old app container...");
-            try {
-                runCommand(workspace, deploymentId,"docker", "rm", "-f", project.getName().toLowerCase() + "-app");
-            } catch (Exception ignored) {}
 
-            log(deploymentId, "🚀 [Deploy] Starting new app container...");
+            // Blue-Green Deployment Logic
+            String currentColor = project.getCurrentColor();
+            String nextColor = "blue".equals(currentColor) ? "green" : "blue";
+            int nextPort = project.getActivePort() == 8081 ? 8082 : 8081;
 
+            log(deploymentId, "🎨 [Deploy] Current color: " + currentColor + ". Deploying to " + nextColor + " on port " + nextPort);
+
+            // Start the new container
+            String newContainerName = project.getName().toLowerCase() + "-app-" + nextColor;
+            log(deploymentId, "🚀 [Deploy] Starting new container: " + newContainerName);
             List<String> runCmd = new ArrayList<>();
             runCmd.add("docker");
             runCmd.add("run");
             runCmd.add("-d");
             runCmd.add("--name");
-            runCmd.add(project.getName().toLowerCase() + "-app");
+            runCmd.add(newContainerName);
             runCmd.add("--network");
-            runCmd.add("kasion-net"); // ⚠️ Must match DB network
+            runCmd.add("kasion-net");
             runCmd.add("-p");
-            runCmd.add("8081:8080");
+            runCmd.add(nextPort + ":8080");
 
-            // 💉 INJECT MAGIC DATABASE VARIABLES
             if (project.isHasDatabase()) {
                 String dbHost = project.getName().toLowerCase() + "-db";
                 String dbUrl = "jdbc:postgresql://" + dbHost + ":5432/" + project.getName().toLowerCase();
@@ -168,14 +153,31 @@ public class BuildEngine {
             }
 
             runCmd.add(imageName);
-
-            // Execute the dynamic command
             runCommand(workspace, deploymentId, runCmd.toArray(new String[0]));
 
-            log(deploymentId, "✅ [Deploy] LIVE at http://localhost:8081");
+            log(deploymentId, "🔬 [Deploy] Health check on new container...");
+            // Simple health check: wait 10 seconds
+            try { Thread.sleep(10000); } catch (InterruptedException ignored) {}
 
-            // 🆕 INSERT THIS BLOCK HERE 👇
-            // Re-fetch to fix "Stale Object" bug
+            log(deploymentId, "🔄 [Deploy] Updating Nginx configuration to point to port " + nextPort);
+            String nginxConfig = "server { listen 80; location / { proxy_pass http://host.docker.internal:" + nextPort + "; } }";
+            Files.writeString(Path.of("control-plane/nginx/default.conf"), nginxConfig);
+
+            log(deploymentId, "🔃 [Deploy] Reloading Nginx...");
+            runCommand(new File("."), deploymentId, "docker-compose", "exec", "nginx", "nginx", "-s", "reload");
+
+            log(deploymentId, "✅ [Deploy] LIVE at http://localhost");
+
+            String oldContainerName = project.getName().toLowerCase() + "-app-" + currentColor;
+            log(deploymentId, "🛑 [Deploy] Stopping old container: " + oldContainerName);
+            try {
+                runCommand(workspace, deploymentId,"docker", "rm", "-f", oldContainerName);
+            } catch (Exception ignored) {}
+
+            project.setCurrentColor(nextColor);
+            project.setActivePort(nextPort);
+            projectRepository.save(project);
+
             Deployment freshDeployment = deploymentRepository.findById(deploymentId)
                     .orElseThrow(() -> new RuntimeException("Deployment vanished!"));
 
@@ -188,7 +190,6 @@ public class BuildEngine {
             deployment.setStatus("FAILED");
             deploymentRepository.save(deployment);
         }
-        // Ideally delete the workspace here, but keeping it for debugging
     }
 
     /**

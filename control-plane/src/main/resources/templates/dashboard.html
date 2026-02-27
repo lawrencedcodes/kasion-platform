@@ -152,6 +152,8 @@
         const repoUrl = prompt("Paste public GitHub URL:", "https://github.com/spring-projects/spring-petclinic.git");
         if (!repoUrl) return;
 
+        const hasDatabase = confirm("Create a managed Postgres database for this project?");
+
         const btn = document.querySelector("button[onclick='triggerDeploy()']");
         const originalText = btn.innerHTML;
 
@@ -161,7 +163,7 @@
         fetch('/api/v1/deploy', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ repoUrl: repoUrl })
+            body: JSON.stringify({ repoUrl: repoUrl, hasDatabase: hasDatabase })
         })
         .then(response => {
             if (response.ok) {

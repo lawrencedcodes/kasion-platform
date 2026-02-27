@@ -23,6 +23,10 @@ public class Project {
     private String dbUser;
 
     private String dbPassword;
+
+    private int activePort;
+    private String currentColor;
+
     public Project() {}
 
     public Project(String name, String ownerId) {
@@ -30,6 +34,8 @@ public class Project {
         this.name = name;
         this.ownerId = ownerId;
         this.buildStatus = "IDLE";
+        this.currentColor = "blue"; // Default to blue
+        this.activePort = 8081; // Default to 8081
     }
 
     // --- GETTERS (Add the missing one here) ---
@@ -53,4 +59,10 @@ public class Project {
 
     public String getDbPassword() { return dbPassword; }
     public void setDbPassword(String dbPassword) { this.dbPassword = dbPassword; }
+
+    public int getActivePort() { return activePort; }
+    public void setActivePort(int activePort) { this.activePort = activePort; }
+
+    public String getCurrentColor() { return currentColor; }
+    public void setCurrentColor(String currentColor) { this.currentColor = currentColor; }
 }
